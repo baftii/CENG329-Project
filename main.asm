@@ -38,7 +38,17 @@ StopWDT     mov.w   #WDTPW|WDTHOLD,&WDTCTL  ; Stop watchdog timer
 ; Winning LED P2.2
 
 main:
-	call pinConfiguration
+	call #defaultInit
+	call #pinConfiguration
+
+defaultInit:
+	; Delay sistemini CPU 1MHz'de çalışacak diye kurguladığımız için
+	; emin olmak için clock kalibrasyon değerleri 1MHz olarak ayarlıyoruz.
+	mov.b &CALBC1_1MHZ, &BCSCTL1
+	mov.b &CALDCO_1MHZ, &DCOCTL
+
+	; Random generation için ACLK kaynağını tek seferlik değiştirdik
+	bis.b #LFXT1S_2, &BCSCTL3
 
 pinConfiguration:
 	; Port1
@@ -81,6 +91,49 @@ pinConfiguration:
 	; Interrupts
 	; TODO: EKLENECEK
 
+	ret
+
+; Random sayı üretimi için kullanılmaktadır.
+; Texas Instrument'ın SLAA338A kodlu dokümanı örnek alınarak
+; implemente edilmiştir. Bu random sayı üretimi VLO ve DCO
+; saatlarinin arasındaki fark esas alınarak sağlanmaktadır.
+getRandomNumber:
+	mov.w #TASSEL_2 + MC_2, &TACTL
+	mov.w #CM_1 + CCIS_1 + CAP, &TACCTL0
+	bic.w #CCIFG, &TACCTL0
+
+waitVLO:
+	bit.w #CCIFG, &TACCTL0
+	jz waitVLO
+	mov.w &TACCR0, r12
+	clr.w &TACTL
+	bic.w #CCIFG, &TACCTL0
+
+	ret
+
+; Aşağıda yer alan subroutinler belirli aralıklarda random değer üretmek için eklendi
+; Isterler gereksinimler doğrultusunda bu aralıkların sık kullanılacağı düşünüldüğü için
+; aralık işlemleri kod içerisinde yapılması yerine özel subroutinlere ayrıldı
+
+; 1-2
+getRandom2:
+	call getRandomNumber
+	and.w #00000001b, r12
+	inc.w r12
+	ret
+
+; 1-4
+getRandom4:
+	call getRandomNumber
+	and.w #000000011b, r12
+	inc.w r12
+	ret
+
+; 1-8
+getRandom8:
+	call getRandomNumber
+	and.w #00000111b, r12
+	inc.w r12
 	ret
 
 ;-------------------------------------------------------------------------------
