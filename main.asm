@@ -31,15 +31,16 @@ StopWDT     mov.w   #WDTPW|WDTHOLD,&WDTCTL  ; Stop watchdog timer
 ; Button4 P2.7
 
 ; OUTPUTS
-; Pattern LED1 P1.3
-; Pattern LED2 P1.4
-; Pattern LED3 P1.5
-; Pattern LED4 P1.6
+; Pattern LED1 P1.2
+; Pattern LED2 P1.3
+; Pattern LED3 P1.4
+; Pattern LED4 P1.5
 ; Winning LED P2.2
 
 main:
 	call #defaultInit
 	call #pinConfiguration
+	jmp exit
 
 defaultInit:
 	; Delay sistemini CPU 1MHz'de çalışacak diye kurguladığımız için
@@ -61,10 +62,10 @@ pinConfiguration:
 	bic.w #0xFF, &P1REN
 
 	; Outputs
-	bic.w #BIT3|BIT4|BIT5|BIT6, &P1SEL
-	bic.w #BIT3|BIT4|BIT5|BIT6, &P1SEL2
-	bis.w #BIT3|BIT4|BIT5|BIT6, &P1DIR
-	bic.w #BIT3|BIT4|BIT5|BIT6, &P1OUT
+	bic.w #BIT2|BIT3|BIT4|BIT5, &P1SEL
+	bic.w #BIT2|BIT3|BIT4|BIT5, &P1SEL2
+	bis.w #BIT2|BIT3|BIT4|BIT5, &P1DIR
+	bic.w #BIT2|BIT3|BIT4|BIT5, &P1OUT
 
 	; Port2
 	; Reset 0x00
@@ -135,6 +136,9 @@ getRandom8:
 	and.w #00000111b, r12
 	inc.w r12
 	ret
+
+exit:
+	nop
 
 ;-------------------------------------------------------------------------------
 ; Stack Pointer definition
