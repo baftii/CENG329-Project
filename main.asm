@@ -38,7 +38,7 @@ StopWDT     mov.w   #WDTPW|WDTHOLD,&WDTCTL  ; Stop watchdog timer
 ; Winning LED P2.2
 
 main:
-	call pinConfiguration
+	call #pinConfiguration
 
 pinConfiguration:
 	; Port1
@@ -103,8 +103,8 @@ delaySubRoutine:
 	push r6
 	push r7
 
-	call calculateOuterCount
-	call waitDelay
+	call #calculateOuterCount
+	call #waitDelay
 
 	; Korunan Registerlari geri alma
 	pop r7
