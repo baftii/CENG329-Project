@@ -89,17 +89,257 @@ preInTransition:
 
 inGame:
 	call #inGameReset
+	jmp inGameLoop
 
+inGameLoop:
+	call #gamePlay
+	inc.b &currentPatternStep
+	cmp.b &maxPatternStep, &currentPatternStep
+	jne inGameLoop
+	ret
 
 inGameReset:
+	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IES
+	bic.b #BIT7|BIT6|BIT5|BIT4, &P2IE
+	bic.b #BIT7|BIT6|BIT5|BIT4, &P2IFG
+
+	bic.b #BIT5|BIT4|BIT3|BIT2, &P1OUT
+
+	clr.b &currentPatternStep
+	call #getRandom2
+	incd.w r12
+	mov.b r12, &maxPatternStep
+	ret
+
+gamePlay:
+	mov.w SP, &inGameReturnSP
+
+	cmp.b #0, &currentPatternStep
+	jeq easyGame ; 3-4 LED time 750 - 1000 ms
+
+	cmp.b #1, &currentPatternStep
+	jeq mediumGame ; 4-5 LED time 600 - 850 ms
+
+	cmp.b #2, &currentPatternStep
+	jeq hardGame ; 6-7 LED time 500 - 750 ms
+
+	cmp.b #3, &currentPatternStep
+	jeq hardestGame ; 8-9 LED time 350 - 600 ms
+
+easyGame:
+	call #getRandom2
+	incd.w r12
+	mov.b r12, &currentLEDCount
+	mov.b &currentLEDCount, &currentTimeCount
+	dec.b &currentTimeCount
+
+	call #calculateLEDs
+
+	mov.w #750, r14
+	call #calculateTimes
+
+	jmp gameGO
+
+mediumGame:
+	call #getRandom2
+	add.w #3, r12
+	mov.b r12, &currentLEDCount
+	mov.b &currentLEDCount, &currentTimeCount
+	dec.b &currentTimeCount
+
+	call #calculateLEDs
+
+	mov.w #600, r14
+	call #calculateTimes
+
+	jmp gameGO
+
+hardGame:
+	call #getRandom2
+	add.w #5, r12
+	mov.b r12, &currentLEDCount
+	mov.b &currentLEDCount, &currentTimeCount
+	dec.b &currentTimeCount
+
+	call #calculateLEDs
+
+	mov.w #500, r14
+	call #calculateTimes
+
+	jmp gameGO
+
+hardestGame:
+	call #getRandom2
+	add.w #7, r12
+	mov.b r12, &currentLEDCount
+	mov.b &currentLEDCount, &currentTimeCount
+	dec.b &currentTimeCount
+
+	call #calculateLEDs
+
+	mov.w #350, r14
+	call #calculateTimes
+
+	jmp gameGO
+
+gameGO:
+	clr.w r7 ; LED counter
+
+	call #representLED
+	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IE
+
+	mov.w #10000, r4
+	call #delaySubRoutine
+	jmp restartGame
+
+restartGame:
+	mov.w #mainLoop, 0(SP)
+
+	bic.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
+	bis.w #BIT3, &P1OUT
+	call #delay250msec
+	bis.w #BIT4, &P1OUT
+	call #delay250msec
+	bis.w #BIT2, &P1OUT
+	call #delay250msec
+	bis.w #BIT5, &P1OUT
+	call #delay250msec
+	xor.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
+	call #delay250msec
+	xor.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
+	call #delay250msec
+	xor.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
+	call #delay250msec
+	xor.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
+	call #delay250msec
+	xor.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
+	call #delay250msec
 
 	ret
+
+representLED:
+	push r5
+	push r6
+
+	clr.w r5 ; LED Counter
+	clr.w r6 ; Time counter
+	jmp representLEDLoop
+
+representLEDLoop:
+	cmp.w r5, &currentLEDCount
+	jeq representLEDEnd
+
+	mov.b patternTimeData(r6), r4
+	inc.w r6
+
+	cmp.b #1, patternLEDData(r5)
+	jeq led1On
+
+	cmp.b #2, patternLEDData(r5)
+	jeq led2On
+
+	cmp.b #3, patternLEDData(r5)
+	jeq led3On
+
+	cmp.b #4, patternLEDData(r5)
+	jeq led4On
+
+led1On:
+	inc.w r5
+	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	bis.b #BIT2, &P1OUT
+	call #delaySubRoutine
+	jmp representLEDLoop
+
+led2On:
+	inc.w r5
+	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	bis.b #BIT3, &P1OUT
+	call #delaySubRoutine
+	jmp representLEDLoop
+
+led3On:
+	inc.w r5
+	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	bis.b #BIT4, &P1OUT
+	call #delaySubRoutine
+	jmp representLEDLoop
+
+led4On:
+	inc.w r5
+	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	bis.b #BIT5, &P1OUT
+	call #delaySubRoutine
+	jmp representLEDLoop
+
+representLEDEnd:
+	pop r6
+	pop r5
+	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	ret
+
+calculateTimes:
+	push r13
+	clr.w r13
+	jmp calculateTimeLoopCheck
+
+calculateTimeLoopCheck:
+	cmp.b r13, &currentTimeCount
+	jne calculateTimeLoop
+	pop r13
+	ret
+
+calculateTimeLoop:
+	call #getRandom250
+	add.w r14, r12
+	mov.b r12, patternTimeData(r13)
+	inc.w r13
+	jmp calculateTimeLoopCheck
+
+calculateLEDs:
+	push r13
+	clr.w r13
+	jmp calculateLEDLoopCheck
+
+calculateLEDLoopCheck:
+	cmp.b r13, &currentLEDCount
+	jne calculateLEDLoop
+	pop r13
+	ret
+
+calculateLEDLoop:
+	call #getRandom4
+	mov.b r12, patternLEDData(r13)
+	inc.w r13
+	jmp calculateLEDLoopCheck
 
 ; ###############################################
 ; 			End-Game Fonksiyonları
 ; ###############################################
 
 endGame:
+	bis.b #BIT2, &P2OUT
+
+	mov.w #3000, r4
+	call #delaySubRoutine
+
+	bis.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	call #delay250msec
+	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	call #delay250msec
+	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	call #delay250msec
+	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	call #delay250msec
+	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	call #delay250msec
+	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	call #delay250msec
+	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	call #delay250msec
+	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+
+	bic.b #BIT2, &P2OUT
 
 	ret
 
@@ -191,22 +431,39 @@ waitVLO:
 
 ; 1-2
 getRandom2:
-	call getRandomNumber
+	call #getRandomNumber
 	and.w #00000001b, r12
 	inc.w r12
 	ret
 
 ; 1-4
 getRandom4:
-	call getRandomNumber
+	call #getRandomNumber
 	and.w #000000011b, r12
 	inc.w r12
 	ret
 
 ; 1-8
 getRandom8:
-	call getRandomNumber
+	call #getRandomNumber
 	and.w #00000111b, r12
+	inc.w r12
+	ret
+
+; 0-250
+getRandom250:
+	call #getRandomNumber
+	dec.w r12
+	jmp getRandom250Loop
+
+getRandom250Loop:
+	cmp.w #250, r12
+	jl getRandom250End
+
+	sub.w #250, r12
+	jmp getRandom250Loop
+
+getRandom250End:
 	inc.w r12
 	ret
 
@@ -309,7 +566,11 @@ Port2InterruptSubroutine:
 preGameInterrupt:
 	bit.b #BIT5|BIT6|BIT7, &P2IFG
 	jnz easterCheck
-	jmp playButtonCheck
+
+	bit.b #BIT4, &P2IFG
+	jnz playButtonCheck
+
+	reti
 
 ; Button4 (BIT7) -> Button4 (BIT7) -> Button2 (BIT5) -> Button3 (BIT6) -> Button2 (BIT5) -> Button1 (BIT4)
 easterCheck:
@@ -402,8 +663,109 @@ easterEggExecute:
 
 
 inGameInterrupt:
+	bit.b #BIT4, &P2IFG
+	jnz handleButtonLED1
 
+	bit.b #BIT5, &P2IFG
+	jnz handleButtonLED2
+
+	bit.b #BIT6, &P2IFG
+	jnz handleButtonLED3
+
+	bit.b #BIT7, &P2IFG
+	jnz handleButtonLED4
+
+handleButtonLED1:
+	bit.b #BIT2, &P1OUT
+	jnz led1Change
+
+	cmp.b #1, patternLEDData(r7)
+	jeq led1Up
+
+	mov.w #restartGame, 2(SP)
 	reti
+
+led1Up:
+	inc.w r7
+	cmp.b r7, &currentLEDCount
+	jeq nextGame
+	jmp led1Change
+
+led1Change:
+	xor.b #BIT2, &P1OUT
+	xor.b #BIT4, &P2IES
+	bic.b #BIT4, &P2IFG
+	reti
+
+handleButtonLED2:
+	bit.b #BIT3, &P1OUT
+	jnz led2Change
+
+	cmp.b #2, patternLEDData(r7)
+	jeq led2Up
+
+	mov.w #restartGame, 2(SP)
+	reti
+
+led2Up:
+	inc.w r7
+	cmp.b r7, &currentLEDCount
+	jeq nextGame
+	jmp led2Change
+
+led2Change:
+	xor.b #BIT3, &P1OUT
+	xor.b #BIT5, &P2IES
+	bic.b #BIT5, &P2IFG
+	reti
+
+handleButtonLED3:
+	bit.b #BIT4, &P1OUT
+	jnz led3Change
+
+	cmp.b #3, patternLEDData(r7)
+	jeq led3Up
+
+	mov.w #restartGame, 2(SP)
+	reti
+
+led3Up:
+	inc.w r7
+	cmp.b r7, &currentLEDCount
+	jeq nextGame
+	jmp led3Change
+
+led3Change:
+	xor.b #BIT4, &P1OUT
+	xor.b #BIT6, &P2IES
+	bic.b #BIT6, &P2IFG
+	reti
+
+handleButtonLED4:
+	bit.b #BIT5, &P1OUT
+	jnz led4Change
+
+	cmp.b #4, patternLEDData(r7)
+	jeq led4Up
+
+	mov.w #restartGame, 2(SP)
+	reti
+
+led4Up:
+	inc.w r7
+	cmp.b r7, &currentLEDCount
+	jeq nextGame
+	jmp led4Change
+
+led4Change:
+	xor.b #BIT5, &P1OUT
+	xor.b #BIT7, &P2IES
+	bic.b #BIT7, &P2IFG
+	reti
+
+nextGame:
+	mov.w &inGameReturnSP, SP
+	ret
 
 			.data
 isPreGame: .byte 1
@@ -412,6 +774,15 @@ preGameCount: .byte 0
 preGameReturnPC: .word 0
 preGameReturnSR: .word 0
 preGameReturnSP: .word 0
+
+inGameReturnSP: .word 0
+
+patternLEDData: .word 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+patternTimeData: .word 0, 0, 0, 0, 0, 0, 0, 0, 0
+currentLEDCount: .byte 0
+currentTimeCount: .byte 0
+maxPatternStep: .byte 0
+currentPatternStep: .byte 0
 
 ;-------------------------------------------------------------------------------
 ; Stack Pointer definition
