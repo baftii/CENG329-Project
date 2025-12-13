@@ -39,9 +39,67 @@ StopWDT     mov.w   #WDTPW|WDTHOLD,&WDTCTL  ; Stop watchdog timer
 
 main:
 	call #defaultInit
-	call #pinConfiguration
-	jmp exit
+	jmp mainLoop
 
+mainLoop:
+	call #preGame
+	call #inGame
+	call #endGame
+
+	jmp mainLoop
+
+; ###############################################
+; 			Pre-Game Fonksiyonları
+; ###############################################
+
+preGame:
+	call #preGameStart
+	call #preInTransition
+
+	mov.b #0, &isPreGame
+	ret
+
+; Başlangıçta çalışacak olan sırayla yakma subroutine
+preGameStart:
+
+	jmp preGameStart
+
+; Butona basılı tuttuğumuz sırada çalışacak subroutine
+preGameTransition:
+
+	bic.b #BIT4, &P2IE
+	ret
+
+; Butona basılı tutma bittikten sonra çalışacak fonksiyon
+preInTransition:
+
+	ret
+
+; ###############################################
+; 			In-Game Fonksiyonları
+; ###############################################
+
+inGame:
+	call #inGameReset
+
+
+inGameReset:
+
+	ret
+
+; ###############################################
+; 			End-Game Fonksiyonları
+; ###############################################
+
+endGame:
+
+	ret
+
+; ###############################################
+; 			Başlangıç Fonksiyonları
+; ###############################################
+
+; Temel başlangıç ayarlarını yapan subroutine'dir
 defaultInit:
 	; Delay sistemini CPU 1MHz'de çalışacak diye kurguladığımız için
 	; emin olmak için clock kalibrasyon değerleri 1MHz olarak ayarlıyoruz.
@@ -53,6 +111,7 @@ defaultInit:
 	call #pinConfiguration
 	jmp exit
 
+; Pin ayarlamalarını yapan temel subroutinedir
 pinConfiguration:
 	; Port1
 	; Reset 0x00
@@ -95,6 +154,10 @@ pinConfiguration:
 	; TODO: EKLENECEK
 
 	ret
+
+; ###############################################
+; 			Random Value Generation
+; ###############################################
 
 ; Random sayı üretimi için kullanılmaktadır.
 ; Texas Instrument'ın SLAA338A kodlu dokümanı örnek alınarak
@@ -139,6 +202,10 @@ getRandom8:
 	inc.w r12
 	ret
 
+; ###############################################
+; 				Delay Subroutine
+; ###############################################
+
 ; milisaniye olarak parametre alacak - r4 -> input
 ; r5, r6, r7 kullanılan registerlar
 ; CPU 1MHz = 1 000 000 Hz ---- 1000 milisaniyede 1 000 000 kere cycle donuyor
@@ -153,6 +220,7 @@ getRandom8:
 ; delay süresi hesabına katılmamıştır.
 
 ; Input minimum 50 olmalıdır.
+; Çağrılacak ana subroutinedır. R4'teki argümana göre delay yapar.
 delaySubRoutine:
 	; Register koruma
 	push r5
@@ -169,8 +237,6 @@ delaySubRoutine:
 
 	ret
 
-; =========================
-
 calculateOuterCount:
 	clr.w r5
 
@@ -182,8 +248,6 @@ outerCountLoop:
 
 calculateOuterCountFinal:
 	ret
-
-; =========================
 
 waitDelay:
 	clr.w r6
@@ -206,10 +270,140 @@ waitDelayOuterLoopFinal:
 waitDelayFinal:
 	ret
 
-; =========================
+delay1sec:
+	push r4
+	mov.w #1000, r4
+	call #delaySubRoutine
+	pop r4
+	ret
 
+delay250msec:
+	push r4
+	mov.w #250, r4
+	call #delaySubRoutine
+	pop r4
+	ret
+
+; ###############################################
+;						EXIT
+; ###############################################
 exit:
 	nop
+
+; ###############################################
+; 				  PORT2 Interrupt
+; ###############################################
+Port2InterruptSubroutine:
+	cmp.b #1, &isPreGame
+	jeq preGameInterrupt
+	jmp inGameInterrupt
+
+preGameInterrupt:
+	bit.w #BIT5|BIT6|BIT7, &P2IFG
+	jnz easterCheck
+	jmp playButtonCheck
+
+; Button4 (BIT7) -> Button4 (BIT7) -> Button2 (BIT5) -> Button3 (BIT6) -> Button2 (BIT5) -> Button1 (BIT4)
+easterCheck:
+	bit.w #BIT5, &P2IFG
+	jnz bit5EasterCheck
+
+	bit.w #BIT6, &P2IFG
+	jnz bit6EasterCheck
+
+	bit.w #BIT7, &P2IFG
+	jnz bit7EasterCheck
+
+bit7EasterCheck:
+	cmp.b #0, &preGameCount
+	jeq easterEggInc
+	cmp.b #1, &preGameCount
+	jeq easterEggInc
+
+	clr.b &preGameCount
+	clr.b &P2IFG
+	reti
+
+bit6EasterCheck:
+	cmp.b #3, &preGameCount
+	jeq easterEggInc
+
+	clr.b &preGameCount
+	clr.b &P2IFG
+	reti
+
+bit5EasterCheck:
+	cmp.b #2, &preGameCount
+	jeq easterEggInc
+	cmp.b #4, &preGameCount
+	jeq easterEggInc
+
+	clr.b &preGameCount
+	clr.b &P2IFG
+	reti
+
+easterEggInc:
+	inc.w &preGameCount
+	reti
+
+playButtonCheck:
+	cmp.b #5, &preGameCount
+	jeq easterEggExecute
+
+	clr.b &preGameCount
+	jmp playButtonExecute
+
+playButtonExecute:
+	cmp.b #0, &isPreTransition
+	jeq goTransition
+	jmp goPreGame
+
+goTransition:
+	mov.b #1, &isPreTransition
+
+	mov.w SP, &preGameReturnSP
+
+	mov.w 2(SP), &preGameReturnPC
+	mov.w 0(SP), &preGameReturnSR
+	mov.w #preGameTransition, 2(SP)
+
+	bic.b #BIT7|BIT6|BIT5, &P2IE
+
+	clr.b &P2IFG
+	xor.b #BIT4, &P2IES
+	reti
+
+goPreGame:
+	mov.b #0, &isPreTransition
+
+	mov.w &preGameReturnSP, SP
+
+	mov.w &preGameReturnPC, 2(SP)
+	mov.w &preGameReturnSR, 0(SP)
+
+	bis.b #BIT7|BIT6|BIT5, &P2IE
+
+	clr.b &P2IFG
+	xor.b #BIT4, &P2IES
+	reti
+
+; EasterEgg sırasında çalışacak interrupt Subroutine
+easterEggExecute:
+
+	reti
+
+
+inGameInterrupt:
+
+	reti
+
+			.data
+isPreGame: .byte 1
+isPreTransition: .byte 0
+preGameCount: .byte 0
+preGameReturnPC: .word 0
+preGameReturnSR: .word 0
+preGameReturnSP: .word 0
 
 ;-------------------------------------------------------------------------------
 ; Stack Pointer definition
@@ -220,6 +414,8 @@ exit:
 ;-------------------------------------------------------------------------------
 ; Interrupt Vectors
 ;-------------------------------------------------------------------------------
+			.sect	".int03"				; Port2 Interrupt
+			.short	Port2InterruptSubroutine
             .sect   ".reset"                ; MSP430 RESET Vector
             .short  RESET
             
