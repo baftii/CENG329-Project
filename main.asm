@@ -53,10 +53,18 @@ mainLoop:
 ; ###############################################
 
 preGame:
+	call #preGameInit
 	call #preGameStart
 	call #preInTransition
 
 	mov.b #0, &isPreGame
+	ret
+
+preGameInit:
+	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IE
+	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IES
+	clr.b &P2IFG
+
 	ret
 
 ; Başlangıçta çalışacak olan sırayla yakma subroutine
@@ -151,7 +159,7 @@ pinConfiguration:
 	bic.w #BIT2, &P2OUT
 
 	; Interrupts
-	; TODO: EKLENECEK
+	bis.w #GIE, SR
 
 	ret
 
