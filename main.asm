@@ -123,40 +123,40 @@ defaultInit:
 pinConfiguration:
 	; Port1
 	; Reset 0x00
-	bic.w #0xFF, &P1OUT
-	bic.w #0xFF, &P1IN
-	bic.w #0xFF, &P1SEL
-	bic.w #0xFF, &P1SEL2
-	bic.w #0xFF, &P1DIR
-	bic.w #0xFF, &P1REN
+	bic.b #0xFF, &P1OUT
+	bic.b #0xFF, &P1IN
+	bic.b #0xFF, &P1SEL
+	bic.b #0xFF, &P1SEL2
+	bic.b #0xFF, &P1DIR
+	bic.b #0xFF, &P1REN
 
 	; Outputs
-	bic.w #BIT2|BIT3|BIT4|BIT5, &P1SEL
-	bic.w #BIT2|BIT3|BIT4|BIT5, &P1SEL2
-	bis.w #BIT2|BIT3|BIT4|BIT5, &P1DIR
-	bic.w #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	bic.b #BIT2|BIT3|BIT4|BIT5, &P1SEL
+	bic.b #BIT2|BIT3|BIT4|BIT5, &P1SEL2
+	bis.b #BIT2|BIT3|BIT4|BIT5, &P1DIR
+	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
 
 	; Port2
 	; Reset 0x00
-	bic.w #0xFF, &P2OUT
-	bic.w #0xFF, &P2IN
-	bic.w #0xFF, &P2SEL
-	bic.w #0xFF, &P2SEL2
-	bic.w #0xFF, &P2DIR
-	bic.w #0xFF, &P1REN
+	bic.b #0xFF, &P2OUT
+	bic.b #0xFF, &P2IN
+	bic.b #0xFF, &P2SEL
+	bic.b #0xFF, &P2SEL2
+	bic.b #0xFF, &P2DIR
+	bic.b #0xFF, &P1REN
 
 	; Inputs
-	bic.w #BIT4|BIT5|BIT6|BIT7, &P2SEL
-	bic.w #BIT4|BIT5|BIT6|BIT7, &P2SEL2
-	bic.w #BIT4|BIT5|BIT6|BIT7, &P2DIR
-	bis.w #BIT4|BIT5|BIT6|BIT7, &P2REN ; resistor-on
-	bis.w #BIT4|BIT5|BIT6|BIT7, &P2OUT ; pull-up
+	bic.b #BIT4|BIT5|BIT6|BIT7, &P2SEL
+	bic.b #BIT4|BIT5|BIT6|BIT7, &P2SEL2
+	bic.b #BIT4|BIT5|BIT6|BIT7, &P2DIR
+	bis.b #BIT4|BIT5|BIT6|BIT7, &P2REN ; resistor-on
+	bis.b #BIT4|BIT5|BIT6|BIT7, &P2OUT ; pull-up
 
 	; Outputs
-	bic.w #BIT2, &P2SEL
-	bic.w #BIT2, &P2SEL2
-	bis.w #BIT2, &P2DIR
-	bic.w #BIT2, &P2OUT
+	bic.b #BIT2, &P2SEL
+	bic.b #BIT2, &P2SEL2
+	bis.b #BIT2, &P2DIR
+	bic.b #BIT2, &P2OUT
 
 	; Interrupts
 	bis.w #GIE, SR
@@ -307,19 +307,19 @@ Port2InterruptSubroutine:
 	jmp inGameInterrupt
 
 preGameInterrupt:
-	bit.w #BIT5|BIT6|BIT7, &P2IFG
+	bit.b #BIT5|BIT6|BIT7, &P2IFG
 	jnz easterCheck
 	jmp playButtonCheck
 
 ; Button4 (BIT7) -> Button4 (BIT7) -> Button2 (BIT5) -> Button3 (BIT6) -> Button2 (BIT5) -> Button1 (BIT4)
 easterCheck:
-	bit.w #BIT5, &P2IFG
+	bit.b #BIT5, &P2IFG
 	jnz bit5EasterCheck
 
-	bit.w #BIT6, &P2IFG
+	bit.b #BIT6, &P2IFG
 	jnz bit6EasterCheck
 
-	bit.w #BIT7, &P2IFG
+	bit.b #BIT7, &P2IFG
 	jnz bit7EasterCheck
 
 bit7EasterCheck:
