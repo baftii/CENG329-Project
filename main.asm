@@ -73,15 +73,70 @@ preGameStart:
 	jmp preGameStart
 
 ; Butona basılı tuttuğumuz sırada çalışacak subroutine
-preGameTransition:
 
-	bic.b #BIT4, &P2IE
-	ret
+; =================================================================
+; Pre Game Transition state where it turns the leds on sequentially
+; =================================================================
+
+preGameTransition:
+    push r4
+    mov.w #1000,r4
+
+    bis.b #BIT5, &P1OUT
+    call #delaySubRoutine
+
+    mov.w #2500,r4
+    bis.b #BIT4, &P1OUT
+    call #delaySubRoutine
+
+    mov.w #2500,r4
+    is.b #BIT3, &P1OUT
+   call #delaySubRoutine
+
+    mov.w #2500,r4
+    bis.b #BIT2, &P1OUT
+    call #delaySubRoutine
+    op r4
+    ret
+;=================================================================
+
+;===========================TODO for preGame ======================
+;Sirasiyla yanarkenki sureler degistirilebilir
+;==================================================================
+
 
 ; Butona basılı tutma bittikten sonra çalışacak fonksiyon
-preInTransition:
 
-	ret
+; ===================================================================================
+; Pre Game Transition state after the button is pressed where it makes the leds blink
+; ===================================================================================
+preInTransition:
+    push r4
+    push r9
+    mov.w #2200,r4 ; sending the 2200 as our delay argument
+    mov.w #650,r9
+
+    blinkWhile:
+
+    dec.w r9
+    cmp #0,r9
+    jl endBlinkWhile
+    call #delaySubRoutine
+    xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+    call #delaySubRoutine
+    jmp blinkWhile
+
+endBlinkWhile:
+    call #delaySubRoutine
+    pop r9
+    pop r4
+    ret
+
+;==========================TODO for preInTransition========================================
+;Bir sebepten oturu sadece bir kere blink ediyor bunun duzeltilmesi lazim
+;=========================================================================================
+
+	
 
 ; ###############################################
 ; 			In-Game Fonksiyonları
