@@ -95,6 +95,8 @@ preGameTransition:
     bis.b #BIT2, &P1OUT
     call #delay1sec
 
+	bic.b #BIT4, &P2IE
+
     ret
 ;=================================================================
 
@@ -123,7 +125,7 @@ blinkWhile:
 
     call #delaySubRoutine
     
-    jmp blinkWhile
+    jmp endBlinkWhile
 
 endBlinkWhile:
 	bic.b #BIT4, &P2IE
