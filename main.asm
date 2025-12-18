@@ -73,15 +73,70 @@ preGameStart:
 	jmp preGameStart
 
 ; Butona basılı tuttuğumuz sırada çalışacak subroutine
+
+; =================================================================
+; Pre Game Transition state where it turns the leds on sequentially
+; =================================================================
+
 preGameTransition:
+    
+    bis.b #BIT5, &P1OUT
+    call #delay1sec
+	
+    
+    bis.b #BIT4, &P1OUT
+    call #delay1sec
+
+    
+    bis.b #BIT3, &P1OUT
+    call #delay1sec
+
+    
+    bis.b #BIT2, &P1OUT
+    call #delay1sec
 
 	bic.b #BIT4, &P2IE
-	ret
+
+    ret
+;=================================================================
+
+
+
 
 ; Butona basılı tutma bittikten sonra çalışacak fonksiyon
-preInTransition:
 
-	ret
+; ===================================================================================
+; Pre Game Transition state after the button is pressed where it makes the leds blink
+; ===================================================================================
+preInTransition:
+    push r4
+    push r9
+    mov.w #20,r9
+
+blinkWhile:
+	mov.w  #1300,r4 ; blink consequently with 1.3 second delays
+
+	call #delaySubRoutine
+
+	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+
+    dec.w r9
+    jnz blinkWhile ; if r9!=0 keep blinking
+
+    call #delaySubRoutine
+    
+    jmp endBlinkWhile
+
+endBlinkWhile:
+	bic.b #BIT4, &P2IE
+    pop r9
+	pop r4
+    ret
+;==========================================================================================
+
+
+
+	
 
 ; ###############################################
 ; 			In-Game Fonksiyonları
