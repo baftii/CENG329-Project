@@ -598,6 +598,13 @@ waitDelayOuterLoopFinal:
 waitDelayFinal:
 	ret
 
+delay2sec:
+	push r4
+	mov.w #2000, r4
+	call #delaySubRoutine
+	pop r4
+	ret
+	
 delay1sec:
 	push r4
 	mov.w #1000, r4
