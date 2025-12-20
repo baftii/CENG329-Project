@@ -69,7 +69,15 @@ preGameInit:
 
 ; Başlangıçta çalışacak olan sırayla yakma subroutine
 preGameStart:
-
+	bis.b #BIT2, &P1OUT
+        call #delay1sec
+        xor.b #BIT3|BIT2, &P1OUT
+        call #delay1sec
+        xor.b #BIT4|BIT3, &P1OUT
+        call #delay1sec
+        xor.b #BIT5|BIT4, &P1OUT
+        call #delay1sec
+        bic.b #BIT5, &P1OUT
 	jmp preGameStart
 
 ; Butona basılı tuttuğumuz sırada çalışacak subroutine
