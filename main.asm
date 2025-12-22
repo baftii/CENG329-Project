@@ -54,30 +54,37 @@ mainLoop:
 
 preGame:
 	call #preGameInit
+	mov.w SP, &returnPreTransitionSP
+	decd.w &returnPreTransitionSP
 	call #preGameStart
+	bic.w #BIT4, &P2IE
 	call #preInTransition
 
 	mov.b #0, &isPreGame
 	ret
 
 preGameInit:
-	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IE
-	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IES
 	clr.b &P2IFG
+	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IES
+	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IE
 
 	ret
 
 ; Başlangıçta çalışacak olan sırayla yakma subroutine
 preGameStart:
+	bic.b #BIT5|BIT4|BIT3|BIT2, &P1OUT
 	bis.b #BIT2, &P1OUT
-        call #delay1sec
-        xor.b #BIT3|BIT2, &P1OUT
-        call #delay1sec
-        xor.b #BIT4|BIT3, &P1OUT
-        call #delay1sec
-        xor.b #BIT5|BIT4, &P1OUT
-        call #delay1sec
-        bic.b #BIT5, &P1OUT
+    call #delay1sec
+    bic.b #BIT5|BIT4|BIT3|BIT2, &P1OUT
+    bis.b #BIT3, &P1OUT
+    call #delay1sec
+    bic.b #BIT5|BIT4|BIT3|BIT2, &P1OUT
+    bis.b #BIT4, &P1OUT
+    call #delay1sec
+    bic.b #BIT5|BIT4|BIT3|BIT2, &P1OUT
+    bis.b #BIT5, &P1OUT
+    call #delay1sec
+    bic.b #BIT5, &P1OUT
 	jmp preGameStart
 
 ; Butona basılı tuttuğumuz sırada çalışacak subroutine
@@ -87,25 +94,23 @@ preGameStart:
 ; =================================================================
 
 preGameTransition:
-    
-    bis.b #BIT5, &P1OUT
-    call #delay1sec
-	
-    
-    bis.b #BIT4, &P1OUT
+	bic.b #BIT5|BIT4|BIT3|BIT2, &P1OUT
+    bis.b #BIT2, &P1OUT
     call #delay1sec
 
-    
     bis.b #BIT3, &P1OUT
     call #delay1sec
 
-    
-    bis.b #BIT2, &P1OUT
+    bis.b #BIT4, &P1OUT
+    call #delay1sec
+
+    bis.b #BIT5, &P1OUT
     call #delay1sec
 
 	bic.b #BIT4, &P2IE
 
-    ret
+	mov.w &returnPreTransitionSP, SP
+	ret
 ;=================================================================
 
 
@@ -119,7 +124,7 @@ preGameTransition:
 preInTransition:
     push r4
     push r9
-    mov.w #20,r9
+    mov.w #5,r9
 
 blinkWhile:
 	mov.w  #1300,r4 ; blink consequently with 1.3 second delays
@@ -132,7 +137,7 @@ blinkWhile:
     jnz blinkWhile ; if r9!=0 keep blinking
 
     call #delaySubRoutine
-    
+
     jmp endBlinkWhile
 
 endBlinkWhile:
@@ -144,7 +149,7 @@ endBlinkWhile:
 
 
 
-	
+
 
 ; ###############################################
 ; 			In-Game Fonksiyonları
@@ -300,7 +305,7 @@ representLED:
 	jmp representLEDLoop
 
 representLEDLoop:
-	cmp.w r5, &currentLEDCount
+	cmp.b r5, &currentLEDCount
 	jeq representLEDEnd
 
 	mov.b patternTimeData(r6), r4
@@ -432,7 +437,7 @@ defaultInit:
 	; Random generation için ACLK kaynağını tek seferlik değiştirdik
 	bis.b #LFXT1S_2, &BCSCTL3
 	call #pinConfiguration
-	jmp exit
+	ret
 
 ; Pin ayarlamalarını yapan temel subroutinedir
 pinConfiguration:
@@ -509,21 +514,21 @@ waitVLO:
 ; 1-2
 getRandom2:
 	call #getRandomNumber
-	and.w #00000001b, r12
+	and.w #0x0001, r12
 	inc.w r12
 	ret
 
 ; 1-4
 getRandom4:
 	call #getRandomNumber
-	and.w #000000011b, r12
+	and.w #0x0003, r12
 	inc.w r12
 	ret
 
 ; 1-8
 getRandom8:
 	call #getRandomNumber
-	and.w #00000111b, r12
+	and.w #0x0007, r12
 	inc.w r12
 	ret
 
@@ -618,7 +623,7 @@ delay2sec:
 	call #delaySubRoutine
 	pop r4
 	ret
-	
+
 delay1sec:
 	push r4
 	mov.w #1000, r4
@@ -909,12 +914,14 @@ currentPatternStep: .byte 0
 isEasterActive:   .byte 0  ; 1 ise hile o anki oyunda aktif
 wasEasterUsed:    .byte 0  ; 1 ise bu execution'da hile hakkı bitmiş demektir
 
+returnPreTransitionSP: .word 0
+
 ;-------------------------------------------------------------------------------
 ; Stack Pointer definition
 ;-------------------------------------------------------------------------------
             .global __STACK_END
             .sect   .stack
-            
+
 ;-------------------------------------------------------------------------------
 ; Interrupt Vectors
 ;-------------------------------------------------------------------------------
@@ -923,3 +930,4 @@ wasEasterUsed:    .byte 0  ; 1 ise bu execution'da hile hakkı bitmiş demektir
             .sect   ".reset"                ; MSP430 RESET Vector
             .short  RESET
             
+
