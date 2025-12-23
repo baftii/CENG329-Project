@@ -290,7 +290,7 @@ restartBlinkLoop:
     mov.w #mainLoop, 0(SP)      ; Dönüş adresini mainLoop yap
     bic.b #BIT4|BIT5|BIT6|BIT7, &P2IFG ; Bayrakları temizle
     
-    reti                        ; Kesmeden temiz çıkış yap ve menüye dön
+    ret
 
 
 
@@ -745,17 +745,16 @@ goPreGame:
 	xor.b #BIT4, &P2IES
 	reti
 
-; EasterEgg subroutine
 easterEggExecute:
-    ; Daha önce kullanıldı mı kontrolü
+    ; Eğer daha önce kullanıldıysa
     cmp.b #1, &wasEasterUsed
-    jeq playButtonExecute       ; Kullanıldıysa hiçbir şey yapmadan oyunu başlat
+    jeq easterEggExitToPreGame
 
-    ; Hileyi aktif et ve hakkı bitir
+    ; Easter egg’i aktif et
     mov.b #1, &isEasterActive
     mov.b #1, &wasEasterUsed
 
-    ; --- LED celebration pattern for easter egg ---
+    ; --- LED celebration pattern ---
     bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
     bis.b #BIT2|BIT5, &P1OUT    
     call #delay250msec
@@ -765,8 +764,13 @@ easterEggExecute:
     call #delay2sec             
     bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
 
-    clr.b &preGameCount
-    jmp playButtonExecute       ; Oyuna geç
+easterEggExitToPreGame:
+    clr.b &preGameCount        
+    clr.b &isPreTransition     
+    clr.b &P2IFG               
+
+    reti
+
 
 
 inGameInterrupt:
