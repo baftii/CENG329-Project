@@ -139,14 +139,15 @@ preInTransition:
 ; @brief loop body of preInTransition
 ; @related preInTransition
 blinkWhile:
-	mov.w  #1300,r4
-
+	mov.w  #800, r4
 	call #delaySubRoutine
+
 	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
 
     dec.w r9
     jnz blinkWhile
 
+    mov.w #800, r4
     call #delaySubRoutine
     jmp endBlinkWhile
 
