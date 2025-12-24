@@ -203,8 +203,8 @@ inGameReset:
 ;        game with respect the current iteration
 ; @related nextGame
 gamePlay:
-	mov.w SP, &inGameReturnSP ; We are saving the stack pointer at this point because we are determining the pattern succesfully achieved or not in interrupts
-	                          ; If we achieves we are manipulating the stack pointer to going next step. This method handled in nextGame label.
+	mov.w SP, &inGameReturnSP ; We are saving the stack pointer at this point because we are determining if the the pattern is succesfully achieved  in the interrupts or not.
+	                          ; If we achieved succesfully, we will manipulate the stack pointer to go to the next step. This method is handled in nextGame label.
 
 	cmp.b #0, &currentPatternStep
 	jeq easyGame ; 3-4 LED time 1500 - 2250 ms
@@ -321,10 +321,10 @@ restartGame:
     mov.w #4, r15
 	jmp restartBlinkLoop
 
-; @brief loop body of restartGame label if will blink all the exterior LED
+; @brief loop body of restartGame label. All the exterior LEDs will blink as the 
 ;        amount given in parameter
 ; @related restartGame
-; @param r15 - amount of how many times will LEDs blink
+; @param r15 - The label showing how many times the LEDs will blink 
 restartBlinkLoop:
     bis.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
     call #delay250msec
@@ -345,8 +345,8 @@ restartGameEnd:
     
     ret
 
-; @brief this label responsible for showing the randomly generated pattern
-;        in LEDs. It is dependant for variables called patternLEDData and
+; @brief this label is responsible for showing the randomly generated pattern
+;        in LEDs. It is dependant of variables called patternLEDData and
 ;        patternTimeData. We did it because our difficulty and count of LED
 ;        changes in game. With this dependancy, we get a flexibilty.
 ; @param patternLEDData
@@ -366,7 +366,7 @@ representLED:
 ; @brief loop body of representLED
 ; @related representLED
 representLEDLoop:
-	cmp.b r5, &currentLEDCount ; check for is all pattern shown or not
+	cmp.b r5, &currentLEDCount ; check for if all pattern is shown or not
 	jeq representLEDEnd
 
 	inc.w r6
@@ -383,7 +383,7 @@ representLEDLoop:
 	cmp.b #4, patternLEDData(r5)
 	jeq led4On
 
-; @brief If the currentPattern points to the LED1 this label will runs
+; @brief If the currentPattern points to the LED1 this label will run
 led1On:
 	inc.w r5
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
@@ -393,7 +393,7 @@ led1On:
 	call #delaySubRoutine
 	jmp representLEDLoop
 
-; @brief If the currentPattern points to the LED2 this label will runs
+; @brief If the currentPattern points to the LED2 this label will run
 led2On:
 	inc.w r5
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
@@ -411,7 +411,7 @@ led3On:
 	call #delaySubRoutine
 	jmp representLEDLoop
 
-; @brief If the currentPattern points to the LED4 this label will runs
+; @brief If the currentPattern points to the LED4 this label will run
 led4On:
 	inc.w r5
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
@@ -427,9 +427,9 @@ representLEDEnd:
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
 	ret
 
-; @brief this label calculates the time intervals respect to given input
+; @brief this label calculates the time intervals with respect to given input
 ; @param r14 - minimum time
-; @uses r13 - track the how many time is generated
+; @uses r13 - tracks how many "time" is generated
 calculateTimes:
 	push r13
 	clr.w r13
@@ -451,7 +451,7 @@ calculateTimeLoop:
 	jmp calculateTimeLoopCheck
 
 ; @brief this label calculates the time intervals respect to given input
-; @uses r13 - track the how many LED pattern is generated
+; @uses r13 - tracks how many LED pattern is generated
 calculateLEDs:
 	push r13
 	clr.w r13
@@ -475,8 +475,8 @@ calculateLEDLoop:
 ; 				End-Game Parts
 ; ###############################################
 
-; @brief this label is starting point of endGame part of the game
-;        it will clear related variables, blinks LED and waits to
+; @brief this label is the starting point of endGame part of the game.
+;        It will clear related variables, blinks LEDs and waits to
 ;        give time to user
 endGame:
 	clr.b &isEasterActive
@@ -509,9 +509,9 @@ endGame:
 ; 			Initilization Subroutines
 ; ###############################################
 
-; @brief the label that handles all the first configuration all the game
+; @brief the label that handles all the first configuration of the game
 defaultInit:
-	mov.b &CALBC1_1MHZ, &BCSCTL1 ; We configured delaySubRoutine for 1MHz CPU Frequency. To ensure more consisting waitings
+	mov.b &CALBC1_1MHZ, &BCSCTL1 ; We configured delaySubRoutine for 1MHz CPU Frequency. To ensure more consistent waitings
 								 ; we write factory calibrated values to the control register of CPU
 	mov.b &CALDCO_1MHZ, &DCOCTL
 
@@ -570,9 +570,9 @@ pinConfiguration:
 ; ###############################################
 
 ; @brief this subroutine used for random value generation
-;	     while we are creating this we used as a source Texas
-;        Instrument's SLAA338A document. Basicly this subroutines
-;        creates random value by differences VLO and DCO clock
+;	     while we are creating this we used Texas
+;        Instrument's SLAA338A document as the source. Basicly these subroutines
+;        create random value by differences VLO and DCO clock
 ;        It will ensure randomity by entropy of this clocks.
 ;        Clock frequencies affecting by environment it will give
 ;        entropy to the system
@@ -705,7 +705,7 @@ waitDelayInnerLoop:
 	inc.w r7 ; 1 cycle
 	cmp.w #10000, r7 ; 2 cycle
 	jne waitDelayInnerLoop ; 2 cycle
-	; Total 5 cycle --- 50 000 olması için 10 000 kere dönmesi lazım o yüzden 10 000 ile cmp yapıyoruz
+	; Total 5 cycle --- It needs to turn 10,000 times to reach 50,000, so we compare it with 10,000. 
 
 ; @brief outer loop end of wait delay
 waitDelayOuterLoopFinal:
@@ -756,11 +756,11 @@ Port2InterruptSubroutine:
 	jeq preGameInterrupt
 	jmp inGameInterrupt
 
-; @brief this label is runs when buttons are pressed while we are in preGame part
+; @brief this label runs when buttons are pressed while we are in preGame part
 ;        of the game
 preGameInterrupt:
-	bit.b #BIT5|BIT6|BIT7, &P2IFG ; Button2, Button3, Button4 is just used for easterEgg detection in preGame therefore firstly we are checking
-								  ; which button occured interrupt
+	bit.b #BIT5|BIT6|BIT7, &P2IFG ; Button2, Button3 and Button4 are just used for easterEgg detection in preGame therefore firstly we are checking
+								  ; which button occured as an interrupt
 	jnz easterCheck
 
 	bit.b #BIT4, &P2IFG ; Button1 is used for transition to inGame and easterEgg detection therefore we have unique label for button1
@@ -769,7 +769,7 @@ preGameInterrupt:
 	reti
 
 ; Button4 (BIT7) -> Button4 (BIT7) -> Button2 (BIT5) -> Button3 (BIT6) -> Button2 (BIT5) -> Button1 (BIT4)
-; @brief When the user in preGame if user presses button in combination shown in up,
+; @brief When the user in is preGame and if the user presses button in combination shown in up,
 ;        easterEgg gonna be triggered. easterEgg will disbute button2, button3 and
 ;        button4 to their own labels to check this combination
 easterCheck:
