@@ -31,6 +31,8 @@ StopWDT     mov.w   #WDTPW|WDTHOLD,&WDTCTL  ; Stop watchdog timer
 ; Button4 P2.7
 
 ; OUTPUTS
+; Onboard Green P1.6
+; Onboard Red P1.0
 ; Pattern LED1 P1.2
 ; Pattern LED2 P1.3
 ; Pattern LED3 P1.4
@@ -87,12 +89,6 @@ preGameStart:
     bic.b #BIT5, &P1OUT
 	jmp preGameStart
 
-; Butona basılı tuttuğumuz sırada çalışacak subroutine
-
-; =================================================================
-; Pre Game Transition state where it turns the leds on sequentially
-; =================================================================
-
 preGameTransition:
 	bic.b #BIT5|BIT4|BIT3|BIT2, &P1OUT
     bis.b #BIT2, &P1OUT
@@ -111,30 +107,22 @@ preGameTransition:
 
 	mov.w &returnPreTransitionSP, SP
 	ret
-;=================================================================
-
-
-
 
 ; Butona basılı tutma bittikten sonra çalışacak fonksiyon
-
-; ===================================================================================
-; Pre Game Transition state after the button is pressed where it makes the leds blink
-; ===================================================================================
 preInTransition:
     push r4
     push r9
     mov.w #5,r9
 
 blinkWhile:
-	mov.w  #1300,r4 ; blink consequently with 1.3 second delays
+	mov.w  #1300,r4
 
 	call #delaySubRoutine
 
 	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
 
     dec.w r9
-    jnz blinkWhile ; if r9!=0 keep blinking
+    jnz blinkWhile
 
     call #delaySubRoutine
 
@@ -145,11 +133,6 @@ endBlinkWhile:
     pop r9
 	pop r4
     ret
-;==========================================================================================
-
-
-
-
 
 ; ###############################################
 ; 			In-Game Fonksiyonları
@@ -183,16 +166,16 @@ gamePlay:
 	mov.w SP, &inGameReturnSP
 
 	cmp.b #0, &currentPatternStep
-	jeq easyGame ; 3-4 LED time 750 - 1000 ms
+	jeq easyGame ; 3-4 LED time 1500 - 2250 ms
 
 	cmp.b #1, &currentPatternStep
-	jeq mediumGame ; 4-5 LED time 600 - 850 ms
+	jeq mediumGame ; 4-5 LED time 1250 - 2000 ms
 
 	cmp.b #2, &currentPatternStep
-	jeq hardGame ; 6-7 LED time 500 - 750 ms
+	jeq hardGame ; 6-7 LED time 750 - 1500 ms
 
 	cmp.b #3, &currentPatternStep
-	jeq hardestGame ; 8-9 LED time 350 - 600 ms
+	jeq hardestGame ; 8-9 LED time 500 - 1250 ms
 
 easyGame:
 	call #getRandom2
@@ -203,7 +186,7 @@ easyGame:
 
 	call #calculateLEDs
 
-	mov.w #750, r14
+	mov.w #1500, r14
 	call #calculateTimes
 
 	jmp gameGO
@@ -217,7 +200,7 @@ mediumGame:
 
 	call #calculateLEDs
 
-	mov.w #600, r14
+	mov.w #1250, r14
 	call #calculateTimes
 
 	jmp gameGO
@@ -231,7 +214,7 @@ hardGame:
 
 	call #calculateLEDs
 
-	mov.w #500, r14
+	mov.w #750, r14
 	call #calculateTimes
 
 	jmp gameGO
@@ -245,13 +228,13 @@ hardestGame:
 
 	call #calculateLEDs
 
-	mov.w #350, r14
+	mov.w #500, r14
 	call #calculateTimes
 
 	jmp gameGO
 
 gameGO:
-	clr.w r7 ; LED counter
+	clr.w r7
 
 	call #representLED
 	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IE
@@ -260,41 +243,28 @@ gameGO:
 	call #delaySubRoutine
 	jmp restartGame
 
-
-/*
-restartGame'de oyuncu kaybettiği için onboard red yanmalı 2 saniyelik blinkleme ile
-new game başlamalı. Buradaki led pattern'ınız yanlış sanırım
-*/
-
 restartGame:
-    clr.b &isEasterActive       ; easter egg deactivated
+	clr.b &P1OUT
+    clr.b &isEasterActive
     
-    ; on board red light on
-    bis.b #BIT0, &P1OUT         
+    bis.b #BIT0, &P1OUT
 
-    ; blinking off board leds
-    mov.w #4, r15               ; 4 kez (250ms yan + 250ms sön) = 2 saniye
+    mov.w #4, r15
 restartBlinkLoop:
-    bis.b #BIT2|BIT3|BIT4|BIT5, &P1OUT  ; Haricileri YAK
+    bis.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
     call #delay250msec
-    bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT  ; Haricileri SÖNDÜR
+    bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
     call #delay250msec
     dec.w r15
     jnz restartBlinkLoop
 
-    ; turnoff onboard red light
-    bic.b #BIT0, &P1OUT         
+    bic.b #BIT0, &P1OUT
 
-    ; 4. KRİTİK: Güvenli Pre-Game Dönüşü
-    mov.w &inGameReturnSP, SP   ; Yığını başlangıç noktasına çek
-    mov.w #mainLoop, 0(SP)      ; Dönüş adresini mainLoop yap
-    bic.b #BIT4|BIT5|BIT6|BIT7, &P2IFG ; Bayrakları temizle
+    mov.w #__STACK_END,SP
+    mov.w #mainLoop, 0(SP)
+    bic.b #BIT4|BIT5|BIT6|BIT7, &P2IFG
     
     ret
-
-
-
-
 
 representLED:
 	push r5
@@ -309,6 +279,7 @@ representLEDLoop:
 	jeq representLEDEnd
 
 	mov.b patternTimeData(r6), r4
+	call #delaySubRoutine
 	inc.w r6
 
 	cmp.b #1, patternLEDData(r5)
@@ -369,7 +340,7 @@ calculateTimeLoopCheck:
 	ret
 
 calculateTimeLoop:
-	call #getRandom250
+	call #getRandom750
 	add.w r14, r12
 	mov.b r12, patternTimeData(r13)
 	inc.w r13
@@ -455,8 +426,8 @@ pinConfiguration:
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1SEL2
 	bis.b #BIT2|BIT3|BIT4|BIT5, &P1DIR
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
-	bis.b #BIT6|BIT0, &P1DIR    ; P1.6 P1.0 on-board green red lights 
-	bic.b #BIT6|BIT0, &P1OUT    ; make on-board lights off
+	bis.b #BIT6|BIT0, &P1DIR
+	bic.b #BIT6|BIT0, &P1OUT
 
 	; Port2
 	; Reset 0x00
@@ -532,20 +503,20 @@ getRandom8:
 	inc.w r12
 	ret
 
-; 0-250
-getRandom250:
+; 0-750
+getRandom750:
 	call #getRandomNumber
 	dec.w r12
-	jmp getRandom250Loop
+	jmp getRandom750Loop
 
-getRandom250Loop:
-	cmp.w #250, r12
-	jl getRandom250End
+getRandom750Loop:
+	cmp.w #750, r12
+	jl getRandom750End
 
-	sub.w #250, r12
-	jmp getRandom250Loop
+	sub.w #750, r12
+	jmp getRandom750Loop
 
-getRandom250End:
+getRandom750End:
 	inc.w r12
 	ret
 
@@ -570,6 +541,7 @@ getRandom250End:
 ; Çağrılacak ana subroutinedır. R4'teki argümana göre delay yapar.
 delaySubRoutine:
 	; Register koruma
+	push r4
 	push r5
 	push r6
 	push r7
@@ -577,10 +549,10 @@ delaySubRoutine:
 	call #calculateOuterCount
 	call #waitDelay
 
-	; Korunan Registerlari geri alma
 	pop r7
 	pop r6
 	pop r5
+	pop r4
 
 	ret
 
@@ -746,15 +718,12 @@ goPreGame:
 	reti
 
 easterEggExecute:
-    ; Eğer daha önce kullanıldıysa
     cmp.b #1, &wasEasterUsed
     jeq easterEggExitToPreGame
 
-    ; Easter egg’i aktif et
     mov.b #1, &isEasterActive
     mov.b #1, &wasEasterUsed
 
-    ; --- LED celebration pattern ---
     bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
     bis.b #BIT2|BIT5, &P1OUT    
     call #delay250msec
@@ -770,8 +739,6 @@ easterEggExitToPreGame:
     clr.b &P2IFG               
 
     reti
-
-
 
 inGameInterrupt:
 	bit.b #BIT4, &P2IFG
@@ -790,8 +757,8 @@ handleButtonLED1:
 	bit.b #BIT2, &P1OUT
 	jnz led1Change
 
-	cmp.b #1, &isEasterActive   ; easter egg check
-    jeq led1Up                  ; if active then true no matter what
+	cmp.b #1, &isEasterActive
+    jeq led1Up
 
 	cmp.b #1, patternLEDData(r7)
 	jeq led1Up
@@ -815,8 +782,8 @@ handleButtonLED2:
 	bit.b #BIT3, &P1OUT
 	jnz led2Change
 
-	cmp.b #1, &isEasterActive   ; easter egg check
-    jeq led2Up                  ; if active then true no matter what
+	cmp.b #1, &isEasterActive
+    jeq led2Up
 
 	cmp.b #2, patternLEDData(r7)
 	jeq led2Up
@@ -840,8 +807,8 @@ handleButtonLED3:
 	bit.b #BIT4, &P1OUT
 	jnz led3Change
 
-	cmp.b #1, &isEasterActive   ; easter egg check
-    jeq led3Up                  ; if active then true no matter what
+	cmp.b #1, &isEasterActive
+    jeq led3Up
 
 	cmp.b #3, patternLEDData(r7)
 	jeq led3Up
@@ -865,8 +832,8 @@ handleButtonLED4:
 	bit.b #BIT5, &P1OUT
 	jnz led4Change
 
-	cmp.b #1, &isEasterActive   ; easter egg check
-    jeq led4Up                  ; if active then true no matter what
+	cmp.b #1, &isEasterActive
+    jeq led4Up
 
 	cmp.b #4, patternLEDData(r7)
 	jeq led4Up
@@ -887,14 +854,15 @@ led4Change:
 	reti
 
 nextGame:
-	bis.b #BIT6, &P1OUT         ; Yeşil on-board LED ON
+	clr.b &P1OUT
+	bis.b #BIT6, &P1OUT
 
 	push r4                     
-	mov.w #2000, r4             ; 2 saniye bekle
+	mov.w #2000, r4
 	call #delaySubRoutine
 	pop r4
 	
-	bic.b #BIT6, &P1OUT         ; Yeşil on-board LED OFF
+	bic.b #BIT6, &P1OUT
 
 	mov.w &inGameReturnSP, SP
 	ret
@@ -915,8 +883,8 @@ currentLEDCount: .byte 0
 currentTimeCount: .byte 0
 maxPatternStep: .byte 0
 currentPatternStep: .byte 0
-isEasterActive:   .byte 0  ; 1 ise hile o anki oyunda aktif
-wasEasterUsed:    .byte 0  ; 1 ise bu execution'da hile hakkı bitmiş demektir
+isEasterActive:   .byte 0
+wasEasterUsed:    .byte 0
 
 returnPreTransitionSP: .word 0
 
