@@ -112,17 +112,19 @@ preGameTransition:
 preInTransition:
     push r4
     push r9
-    mov.w #5,r9
+    mov.w #5,r9 ; making blinks 3 times (it stays on for 3 times and off for 2 times)
 
 blinkWhile:
-	mov.w  #1300,r4
+	mov.w  #800,r4 ;making a 0.8 second delay between the blinks
 
 	call #delaySubRoutine
 
 	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
 
-    dec.w r9
+    dec.w r9 ; if r9!=0 go to blinkwhile
     jnz blinkWhile
+
+    mov.w #800,r4
 
     call #delaySubRoutine
 
