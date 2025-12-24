@@ -260,7 +260,8 @@ restartBlinkLoop:
 
     bic.b #BIT0, &P1OUT
 
-    mov.w #__STACK_END,SP
+    mov.w #__STACK_END, SP
+	decd.w SP
     mov.w #mainLoop, 0(SP)
     bic.b #BIT4|BIT5|BIT6|BIT7, &P2IFG
     
