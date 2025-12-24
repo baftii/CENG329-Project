@@ -260,30 +260,41 @@ gameGO:
 	call #delaySubRoutine
 	jmp restartGame
 
+
+/*
+restartGame'de oyuncu kaybettiği için onboard red yanmalı 2 saniyelik blinkleme ile
+new game başlamalı. Buradaki led pattern'ınız yanlış sanırım
+*/
+
 restartGame:
-	mov.w #mainLoop, 0(SP)
+    clr.b &isEasterActive       ; easter egg deactivated
+    
+    ; on board red light on
+    bis.b #BIT0, &P1OUT         
 
-	bic.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
-	bis.w #BIT3, &P1OUT
-	call #delay250msec
-	bis.w #BIT4, &P1OUT
-	call #delay250msec
-	bis.w #BIT2, &P1OUT
-	call #delay250msec
-	bis.w #BIT5, &P1OUT
-	call #delay250msec
-	xor.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
-	call #delay250msec
-	xor.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
-	call #delay250msec
-	xor.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
-	call #delay250msec
-	xor.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
-	call #delay250msec
-	xor.w #BIT5|BIT4|BIT3|BIT2, &P1OUT
-	call #delay250msec
+    ; blinking off board leds
+    mov.w #4, r15               ; 4 kez (250ms yan + 250ms sön) = 2 saniye
+restartBlinkLoop:
+    bis.b #BIT2|BIT3|BIT4|BIT5, &P1OUT  ; Haricileri YAK
+    call #delay250msec
+    bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT  ; Haricileri SÖNDÜR
+    call #delay250msec
+    dec.w r15
+    jnz restartBlinkLoop
 
-	ret
+    ; turnoff onboard red light
+    bic.b #BIT0, &P1OUT         
+
+    ; 4. KRİTİK: Güvenli Pre-Game Dönüşü
+    mov.w &inGameReturnSP, SP   ; Yığını başlangıç noktasına çek
+    mov.w #mainLoop, 0(SP)      ; Dönüş adresini mainLoop yap
+    bic.b #BIT4|BIT5|BIT6|BIT7, &P2IFG ; Bayrakları temizle
+    
+    ret
+
+
+
+
 
 representLED:
 	push r5
@@ -386,6 +397,7 @@ calculateLEDLoop:
 ; ###############################################
 
 endGame:
+	clr.b &isEasterActive # can't use easter state in other games if used once
 	bis.b #BIT2, &P2OUT
 
 	mov.w #3000, r4
@@ -443,6 +455,8 @@ pinConfiguration:
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1SEL2
 	bis.b #BIT2|BIT3|BIT4|BIT5, &P1DIR
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	bis.b #BIT6|BIT0, &P1DIR    ; P1.6 P1.0 on-board green red lights 
+	bic.b #BIT6|BIT0, &P1OUT    ; make on-board lights off
 
 	; Port2
 	; Reset 0x00
@@ -731,10 +745,32 @@ goPreGame:
 	xor.b #BIT4, &P2IES
 	reti
 
-; EasterEgg sırasında çalışacak interrupt Subroutine
 easterEggExecute:
+    ; Eğer daha önce kullanıldıysa
+    cmp.b #1, &wasEasterUsed
+    jeq easterEggExitToPreGame
 
-	reti
+    ; Easter egg’i aktif et
+    mov.b #1, &isEasterActive
+    mov.b #1, &wasEasterUsed
+
+    ; --- LED celebration pattern ---
+    bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+    bis.b #BIT2|BIT5, &P1OUT    
+    call #delay250msec
+    xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT 
+    call #delay250msec
+    bis.b #BIT2|BIT3|BIT4|BIT5, &P1OUT 
+    call #delay2sec             
+    bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+
+easterEggExitToPreGame:
+    clr.b &preGameCount        
+    clr.b &isPreTransition     
+    clr.b &P2IFG               
+
+    reti
+
 
 
 inGameInterrupt:
@@ -753,6 +789,9 @@ inGameInterrupt:
 handleButtonLED1:
 	bit.b #BIT2, &P1OUT
 	jnz led1Change
+
+	cmp.b #1, &isEasterActive   ; easter egg check
+    jeq led1Up                  ; if active then true no matter what
 
 	cmp.b #1, patternLEDData(r7)
 	jeq led1Up
@@ -776,6 +815,9 @@ handleButtonLED2:
 	bit.b #BIT3, &P1OUT
 	jnz led2Change
 
+	cmp.b #1, &isEasterActive   ; easter egg check
+    jeq led2Up                  ; if active then true no matter what
+
 	cmp.b #2, patternLEDData(r7)
 	jeq led2Up
 
@@ -797,6 +839,9 @@ led2Change:
 handleButtonLED3:
 	bit.b #BIT4, &P1OUT
 	jnz led3Change
+
+	cmp.b #1, &isEasterActive   ; easter egg check
+    jeq led3Up                  ; if active then true no matter what
 
 	cmp.b #3, patternLEDData(r7)
 	jeq led3Up
@@ -820,6 +865,9 @@ handleButtonLED4:
 	bit.b #BIT5, &P1OUT
 	jnz led4Change
 
+	cmp.b #1, &isEasterActive   ; easter egg check
+    jeq led4Up                  ; if active then true no matter what
+
 	cmp.b #4, patternLEDData(r7)
 	jeq led4Up
 
@@ -839,6 +887,15 @@ led4Change:
 	reti
 
 nextGame:
+	bis.b #BIT6, &P1OUT         ; Yeşil on-board LED ON
+
+	push r4                     
+	mov.w #2000, r4             ; 2 saniye bekle
+	call #delaySubRoutine
+	pop r4
+	
+	bic.b #BIT6, &P1OUT         ; Yeşil on-board LED OFF
+
 	mov.w &inGameReturnSP, SP
 	ret
 
@@ -858,6 +915,8 @@ currentLEDCount: .byte 0
 currentTimeCount: .byte 0
 maxPatternStep: .byte 0
 currentPatternStep: .byte 0
+isEasterActive:   .byte 0  ; 1 ise hile o anki oyunda aktif
+wasEasterUsed:    .byte 0  ; 1 ise bu execution'da hile hakkı bitmiş demektir
 
 returnPreTransitionSP: .word 0
 
