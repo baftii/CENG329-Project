@@ -39,6 +39,8 @@ StopWDT     mov.w   #WDTPW|WDTHOLD,&WDTCTL  ; Stop watchdog timer
 ;        values of the variables and registers. After that it
 ;		 jump to the mainLoop
 main:
+	mov.w #patternTimeData, r13
+	mov.w #patternLEDData, r10
 	call #defaultInit
 	jmp mainLoop
 
@@ -76,12 +78,14 @@ preGame:
 	mov.b #0, &isPreGame
 	ret
 
-; @brief this label configures button's interrupt edge to falling edge 
+; @brief this label configures button's interrupt edge to falling edge
 ;        because we are using pull-up buttons and it will enable
 ;        interrupts for this buttons
 preGameInit:
+	mov.b #0, &isPreTransition
 	clr.b &P2IFG
 	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IES
+	bic.b #BIT7|BIT6|BIT5|BIT4, &P2IFG
 	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IE
 
 	ret
@@ -164,14 +168,14 @@ endBlinkWhile:
 ; ###############################################
 
 ; @brief the starting point of the inGame part of the game
-;        it calls inGameReset to reset variables and registers 
+;        it calls inGameReset to reset variables and registers
 ;        for inGame part.
 inGame:
 	call #inGameReset
 	jmp inGameLoop
 
 ; @brief loop body of inGame. By that function we are keeping
-;        game step. By requirements we need to play game for 
+;        game step. By requirements we need to play game for
 ;        at least 3 times. This label ensures that at least 3
 ;        games are played
 ; @related inGame
@@ -224,7 +228,7 @@ gamePlay:
 ;        Delay time will be between 1500-2250ms (included)
 easyGame:
 	call #getRandom2
-	incd.w r12
+	incd.w r12 ; r12=r12+2
 	mov.b r12, &currentLEDCount
 	mov.b &currentLEDCount, &currentTimeCount
 	dec.b &currentTimeCount
@@ -299,9 +303,10 @@ hardestGame:
 ;        related subroutines are below
 ; @related patternLEDData
 gameGO:
-	clr.w r7
+	clr.b &currentPatternCounter
 
 	call #representLED
+	bic.b #BIT5|BIT4|BIT3|BIT2, &P1OUT
 	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IE
 
 	mov.w #10000, r4
@@ -313,9 +318,11 @@ gameGO:
 ;        the stack. After all it will restart the program by going mainLoop
 ;        label
 restartGame:
+	bic.b #BIT4|BIT5|BIT6|BIT7, &P2IE
+	mov.b #1, &isPreGame
 	clr.b &P1OUT
     clr.b &isEasterActive
-    
+
     bis.b #BIT0, &P1OUT
 
     mov.w #4, r15
@@ -340,9 +347,10 @@ restartGameEnd:
 
     mov.w #__STACK_END, SP ; We are resetting the stack with manipulating stack pointer
 	decd.w SP ; we decrement it because we are going to ret instruction for mainLoop. Therefore we give the space for it.
-    mov.w #mainLoop, 0(SP)
+    mov.w #main, 0(SP)
     bic.b #BIT4|BIT5|BIT6|BIT7, &P2IFG
-    
+    bis.b #BIT4|BIT5|BIT6|BIT7, &P2IE
+
     ret
 
 ; @brief this label responsible for showing the randomly generated pattern
@@ -366,10 +374,12 @@ representLED:
 ; @brief loop body of representLED
 ; @related representLED
 representLEDLoop:
-	cmp.b r5, &currentLEDCount ; check for is all pattern shown or not
+	cmp.b r5, &currentLEDCount
 	jeq representLEDEnd
 
 	inc.w r6
+
+	rla.b r5
 
 	cmp.b #1, patternLEDData(r5)
 	jeq led1On
@@ -385,38 +395,50 @@ representLEDLoop:
 
 ; @brief If the currentPattern points to the LED1 this label will runs
 led1On:
+	rra.b r5
 	inc.w r5
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	mov.w #800, r4
+	call #delaySubRoutine
 	bis.b #BIT2, &P1OUT
-	mov.b patternTimeData(r6), r4
+	mov.w patternTimeData(r6), r4
 
 	call #delaySubRoutine
 	jmp representLEDLoop
 
 ; @brief If the currentPattern points to the LED2 this label will runs
 led2On:
+	rra.b r5
 	inc.w r5
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	mov.w #800, r4
+	call #delaySubRoutine
 	bis.b #BIT3, &P1OUT
-	mov.b patternTimeData(r6), r4
+	mov.w patternTimeData(r6), r4
 	call #delaySubRoutine
 	jmp representLEDLoop
 
 ; @brief If the currentPattern points to the LED3 this label will runs
 led3On:
+	rra.b r5
 	inc.w r5
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	mov.w #800, r4
+	call #delaySubRoutine
 	bis.b #BIT4, &P1OUT
-	mov.b patternTimeData(r6), r4
+	mov.w patternTimeData(r6), r4
 	call #delaySubRoutine
 	jmp representLEDLoop
 
 ; @brief If the currentPattern points to the LED4 this label will runs
 led4On:
+	rra.b r5
 	inc.w r5
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+	mov.w #800, r4
+	call #delaySubRoutine
 	bis.b #BIT5, &P1OUT
-	mov.b patternTimeData(r6), r4
+	mov.w patternTimeData(r6), r4
 	call #delaySubRoutine
 	jmp representLEDLoop
 
@@ -432,13 +454,18 @@ representLEDEnd:
 ; @uses r13 - track the how many time is generated
 calculateTimes:
 	push r13
+	push r8
+
+	mov.b &currentTimeCount, r8
+	add.b r8, r8
 	clr.w r13
 	jmp calculateTimeLoopCheck
 
 ; @brief loop condition check of calculateTimes
 calculateTimeLoopCheck:
-	cmp.b r13, &currentTimeCount
+	cmp.b r13, r8
 	jne calculateTimeLoop
+	pop r8
 	pop r13
 	ret
 
@@ -446,29 +473,39 @@ calculateTimeLoopCheck:
 calculateTimeLoop:
 	call #getRandom750
 	add.w r14, r12
-	mov.b r12, patternTimeData(r13)
-	inc.w r13
+	mov.w r12, patternTimeData(r13)
+	add.w #2, r13
 	jmp calculateTimeLoopCheck
 
 ; @brief this label calculates the time intervals respect to given input
 ; @uses r13 - track the how many LED pattern is generated
 calculateLEDs:
 	push r13
+	push r8
 	clr.w r13
 	jmp calculateLEDLoopCheck
 
 ; @brief loop condition check of calculateLEDs
 calculateLEDLoopCheck:
-	cmp.b r13, &currentLEDCount
+
+	mov.b  &currentLEDCount,r8
+	add.b r8,r8
+
+	cmp.b r13, r8
+
+	;cmp.b r13, &currentLEDCount
 	jne calculateLEDLoop
+
+	pop r8
+
 	pop r13
 	ret
 
 ; @brief loop body of calculateLEDs
 calculateLEDLoop:
 	call #getRandom4
-	mov.b r12, patternLEDData(r13)
-	inc.w r13
+	mov.w r12, patternLEDData(r13)
+	add.w #2, r13
 	jmp calculateLEDLoopCheck
 
 ; ###############################################
@@ -644,12 +681,12 @@ getRandom750End:
 ;        This implementation assumes a CPU frequency of 1 MHz (1,000,000
 ;        cycles per second). To simplify programming on a 16-bit system,
 ;		 the delay is implemented with a granularity (resolution) of 50
-;		 milliseconds. 
+;		 milliseconds.
 ;        Inner Loop: Consumes exactly 50,000 cycles to achieve a 50ms delay.
 ;        Outer Loop: Controls how many 50ms blocks are executed. The input argument is
 ;                    divided by 50 to determine the outer loop count.
 ;
-; 		 Note: The delay time is approximate. Cycle overheads for outer count calculation, 
+; 		 Note: The delay time is approximate. Cycle overheads for outer count calculation,
 ; 		 division, and stack operations (push/pop) are not included in the delay calculation.
 ; @param r4 - Duration to wait in milliseconds. (Minimum value must be 50).
 ; @uses r5 - Registers used for loop counters and temporary calculations.
@@ -830,6 +867,7 @@ bit5EasterCheck:
 ;        pressed in correct order
 easterEggInc:
 	inc.w &preGameCount
+	clr.b &P2IFG
 	reti
 
 ; @brief this label used for button1 control in preGame part of the game
@@ -858,7 +896,7 @@ playButtonExecute:
 	jmp goPreGame
 
 ; @brief It runs when preGameStart is running and button1 is detected falling-edge
-;        This label changes isPreTransition value because next time if interrupt 
+;        This label changes isPreTransition value because next time if interrupt
 ;        occurs in button1 goPreGame need to run.
 ;        After it will record current stack pointer to preGameReturnSP. This value
 ;        is saved because if we need to go back goPreGame we need to know where we
@@ -918,20 +956,20 @@ easterEggExecute:
 	bic.b #BIT7|BIT6|BIT5, &P2IE ; We are disabling other buttons interrupt because we have delay in this label. Therefore, there is a chance to pressing other buttons.
 
     bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
-    bis.b #BIT2|BIT5, &P1OUT    
+    bis.b #BIT2|BIT5, &P1OUT
     call #delay250msec
-    xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT 
+    xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
     call #delay250msec
-    bis.b #BIT2|BIT3|BIT4|BIT5, &P1OUT 
-    call #delay2sec             
+    bis.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
+    call #delay2sec
     bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
-	
+
 	jmp easterEggExitToPreGame
 
 ; @brief exit of easterEggExecute
 easterEggExitToPreGame:
     clr.b &preGameCount
-    clr.b &isPreTransition     
+    clr.b &isPreTransition
     clr.b &P2IFG
 
 	bis.b #BIT7|BIT6|BIT5, &P2IE
@@ -962,28 +1000,35 @@ inGameInterrupt:
 ;        If user presses wrong it will manipulate stack pointer
 ;        and call restartGame
 handleButtonLED1:
+	push r12
 	bit.b #BIT2, &P1OUT
 	jnz led1Change
 
 	cmp.b #1, &isEasterActive
     jeq led1Up
 
-	cmp.b #1, patternLEDData(r7)
+	mov.b &currentPatternCounter, r12
+	inc.b &currentPatternCounter
+	rla.b r12
+	cmp.b #1, patternLEDData(r12)
 	jeq led1Up
 
-	mov.w #restartGame, 2(SP)
-	reti
+	pop r12
+	mov.w #restartGame, 0(SP)
+	ret
 
 ; @brief This label increment success of currentPattern and compare
 ;        pattern is ended or not
 led1Up:
-	inc.w r7
-	cmp.b r7, &currentLEDCount
+	rra.b r12
+	inc.b r12
+	cmp.b r12, &currentLEDCount
 	jeq nextGame
 	jmp led1Change
 
 ; @brief Controlls Button1 interrupt edge and LED1
 led1Change:
+	pop r12
 	xor.b #BIT2, &P1OUT
 	xor.b #BIT4, &P2IES
 	bic.b #BIT4, &P2IFG
@@ -998,28 +1043,37 @@ led1Change:
 ;        If user presses wrong it will manipulate stack pointer
 ;        and call restartGame
 handleButtonLED2:
+	push r12
 	bit.b #BIT3, &P1OUT
 	jnz led2Change
 
 	cmp.b #1, &isEasterActive
     jeq led2Up
 
-	cmp.b #2, patternLEDData(r7)
+	mov.b &currentPatternCounter, r12
+	inc.b &currentPatternCounter
+	rla.b r12
+	clr.w r13
+	mov.b patternLEDData(r12), r13
+	cmp.b #2, patternLEDData(r12)
 	jeq led2Up
 
-	mov.w #restartGame, 2(SP)
-	reti
+	pop r12
+	mov.w #restartGame, 0(SP)
+	ret
 
 ; @brief This label increment success of currentPattern and compare
 ;        pattern is ended or not
 led2Up:
-	inc.w r7
-	cmp.b r7, &currentLEDCount
+	rra.b r12
+	inc.b r12
+	cmp.b r12, &currentLEDCount
 	jeq nextGame
 	jmp led2Change
 
 ; @brief Controlls Button2 interrupt edge and LED2
 led2Change:
+	pop r12
 	xor.b #BIT3, &P1OUT
 	xor.b #BIT5, &P2IES
 	bic.b #BIT5, &P2IFG
@@ -1034,28 +1088,35 @@ led2Change:
 ;        If user presses wrong it will manipulate stack pointer
 ;        and call restartGame
 handleButtonLED3:
+	push r12
 	bit.b #BIT4, &P1OUT
 	jnz led3Change
 
 	cmp.b #1, &isEasterActive
     jeq led3Up
 
-	cmp.b #3, patternLEDData(r7)
+	mov.b &currentPatternCounter, r12
+	inc.b &currentPatternCounter
+	rla.b r12
+	cmp.b #3, patternLEDData(r12)
 	jeq led3Up
 
-	mov.w #restartGame, 2(SP)
-	reti
+	pop r12
+	mov.w #restartGame, 0(SP)
+	ret
 
 ; @brief This label increment success of currentPattern and compare
 ;        pattern is ended or not
 led3Up:
-	inc.w r7
-	cmp.b r7, &currentLEDCount
+	rra.b r12
+	inc.b r12
+	cmp.b r12, &currentLEDCount
 	jeq nextGame
 	jmp led3Change
 
 ; @brief Controlls Button3 interrupt edge and LED3
 led3Change:
+	pop r12
 	xor.b #BIT4, &P1OUT
 	xor.b #BIT6, &P2IES
 	bic.b #BIT6, &P2IFG
@@ -1070,28 +1131,35 @@ led3Change:
 ;        If user presses wrong it will manipulate stack pointer
 ;        and call restartGame
 handleButtonLED4:
+	push r12
 	bit.b #BIT5, &P1OUT
 	jnz led4Change
 
 	cmp.b #1, &isEasterActive
     jeq led4Up
 
-	cmp.b #4, patternLEDData(r7)
+	mov.b &currentPatternCounter, r12
+	inc.b &currentPatternCounter
+	rla.b r12
+	cmp.b #4, patternLEDData(r12)
 	jeq led4Up
 
-	mov.w #restartGame, 2(SP)
-	reti
+	pop r12
+	mov.w #restartGame, 0(SP)
+	ret
 
 ; @brief This label increment success of currentPattern and compare
 ;        pattern is ended or not
 led4Up:
-	inc.w r7
-	cmp.b r7, &currentLEDCount
+	rra.b r12
+	inc.b r12
+	cmp.b r12, &currentLEDCount
 	jeq nextGame
 	jmp led4Change
 
 ; @brief Controlls Button4 interrupt edge and LED4
 led4Change:
+	pop r12
 	xor.b #BIT5, &P1OUT
 	xor.b #BIT7, &P2IES
 	bic.b #BIT7, &P2IFG
@@ -1099,6 +1167,7 @@ led4Change:
 
 ; @brief this label runs when pattern succesfully completed
 nextGame:
+	pop r12
 	clr.b &P1OUT
 	bis.b #BIT6, &P1OUT
 
@@ -1110,7 +1179,7 @@ nextGame:
 	pop r4
 
 	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IE
-	
+
 	bic.b #BIT6, &P1OUT
 
 	mov.w &inGameReturnSP, SP ; we manipulate the stack pointer because the pattern is completed we need to go next iteration
@@ -1139,6 +1208,9 @@ preGameReturnSP: .word 0
 ; @brief To used for when inGame pattern is completed, to return next pattern iteration
 inGameReturnSP: .word 0
 
+; @brief This is a parameter to count whether the player pressed the buttons in the right sequence
+sequenceCounter: .byte 0
+
 ; @brief To used for saving random generated LED pattern and Time intervals
 patternLEDData: .word 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 patternTimeData: .word 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -1164,6 +1236,9 @@ wasEasterUsed:    .byte 0
 ; @brief To used for break preGameStart infinite loop and returning preGame subroutine
 returnPreTransitionSP: .word 0
 
+;
+currentPatternCounter: .byte 0
+
 ;-------------------------------------------------------------------------------
 ; Stack Pointer definition
 ;-------------------------------------------------------------------------------
@@ -1178,4 +1253,5 @@ returnPreTransitionSP: .word 0
             .sect   ".reset"                ; MSP430 RESET Vector
             .short  RESET
             
+
 
