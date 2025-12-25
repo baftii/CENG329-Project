@@ -137,13 +137,13 @@ preGameTransition:
 preInTransition:
     push r4
     push r9
-    mov.w #5,r9
+    mov.w #8,r9
 	jmp blinkWhile
 
 ; @brief loop body of preInTransition
 ; @related preInTransition
 blinkWhile:
-	mov.w  #800, r4
+	mov.w  #400, r4
 	call #delaySubRoutine
 
 	xor.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
@@ -151,7 +151,7 @@ blinkWhile:
     dec.w r9
     jnz blinkWhile
 
-    mov.w #800, r4
+    mov.w #400, r4
     call #delaySubRoutine
     jmp endBlinkWhile
 
@@ -214,13 +214,13 @@ gamePlay:
 	jeq easyGame ; 3-4 LED time 1500 - 2250 ms
 
 	cmp.b #1, &currentPatternStep
-	jeq mediumGame ; 4-5 LED time 1250 - 2000 ms
+	jeq mediumGame ; 4-5 LED time 750 - 1250 ms
 
 	cmp.b #2, &currentPatternStep
-	jeq hardGame ; 6-7 LED time 750 - 1500 ms
+	jeq hardGame ; 6-7 LED time 500 - 750 ms
 
 	cmp.b #3, &currentPatternStep
-	jeq hardestGame ; 8-9 LED time 500 - 1250 ms
+	jeq hardestGame ; 8-9 LED time 400 - 650 ms
 
 ; @brief This label configures LED count and time values for easy difficulty
 ;        it will run when currentPatternStep is equal to 0
@@ -236,6 +236,7 @@ easyGame:
 	call #calculateLEDs
 
 	mov.w #1500, r14
+	mov.w #750, r9
 	call #calculateTimes
 
 	jmp gameGO
@@ -253,7 +254,8 @@ mediumGame:
 
 	call #calculateLEDs
 
-	mov.w #1250, r14
+	mov.w #1000, r14
+	mov.w #500, r9
 	call #calculateTimes
 
 	jmp gameGO
@@ -271,7 +273,8 @@ hardGame:
 
 	call #calculateLEDs
 
-	mov.w #750, r14
+	mov.w #500, r14
+	mov.w #500, r9
 	call #calculateTimes
 
 	jmp gameGO
@@ -289,7 +292,8 @@ hardestGame:
 
 	call #calculateLEDs
 
-	mov.w #500, r14
+	mov.w #350, r14
+	mov.w #250, r9
 	call #calculateTimes
 
 	jmp gameGO
@@ -323,7 +327,7 @@ restartGame:
 	clr.b &P1OUT
     clr.b &isEasterActive
 
-    bis.b #BIT0, &P1OUT
+    bis.b #BIT6, &P1OUT
 
     mov.w #4, r15
 	jmp restartBlinkLoop
@@ -343,7 +347,7 @@ restartBlinkLoop:
 
 ; @brief end of the restartGame label
 restartGameEnd:
-    bic.b #BIT0, &P1OUT
+    bic.b #BIT6, &P1OUT
 
     mov.w #__STACK_END, SP ; We are resetting the stack with manipulating stack pointer
 	decd.w SP ; we decrement it because we are going to ret instruction for mainLoop. Therefore we give the space for it.
@@ -398,7 +402,7 @@ led1On:
 	rra.b r5
 	inc.w r5
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
-	mov.w #800, r4
+	mov.w #400, r4
 	call #delaySubRoutine
 	bis.b #BIT2, &P1OUT
 	mov.w patternTimeData(r6), r4
@@ -411,7 +415,7 @@ led2On:
 	rra.b r5
 	inc.w r5
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
-	mov.w #800, r4
+	mov.w #400, r4
 	call #delaySubRoutine
 	bis.b #BIT3, &P1OUT
 	mov.w patternTimeData(r6), r4
@@ -423,7 +427,7 @@ led3On:
 	rra.b r5
 	inc.w r5
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
-	mov.w #800, r4
+	mov.w #400, r4
 	call #delaySubRoutine
 	bis.b #BIT4, &P1OUT
 	mov.w patternTimeData(r6), r4
@@ -435,7 +439,7 @@ led4On:
 	rra.b r5
 	inc.w r5
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
-	mov.w #800, r4
+	mov.w #400, r4
 	call #delaySubRoutine
 	bis.b #BIT5, &P1OUT
 	mov.w patternTimeData(r6), r4
@@ -452,6 +456,7 @@ representLEDEnd:
 ; @brief this label calculates the time intervals respect to given input
 ; @param r14 - minimum time
 ; @uses r13 - track the how many time is generated
+; @uses r9 - which random interval going to use
 calculateTimes:
 	push r13
 	push r8
@@ -471,7 +476,28 @@ calculateTimeLoopCheck:
 
 ; @brief loop body of calculateTimes
 calculateTimeLoop:
+	cmp.w #750, r9
+	jeq interval750
+
+	cmp.w #500, r9
+	jeq interval500
+
+	cmp.w #250, r9
+	jeq interval250
+
+interval750:
 	call #getRandom750
+	jmp calculateTimeLoopContinue
+
+interval500:
+	call #getRandom500
+	jmp calculateTimeLoopContinue
+
+interval250:
+	call #getRandom250
+	jmp calculateTimeLoopContinue
+
+calculateTimeLoopContinue:
 	add.w r14, r12
 	mov.w r12, patternTimeData(r13)
 	add.w #2, r13
@@ -506,6 +532,9 @@ calculateLEDLoop:
 	call #getRandom4
 	mov.w r12, patternLEDData(r13)
 	add.w #2, r13
+
+	mov.w #50, r4
+	call #delaySubRoutine ; we added small delay because if don't add sometimes it will generate same value consequetively
 	jmp calculateLEDLoopCheck
 
 ; ###############################################
@@ -516,6 +545,7 @@ calculateLEDLoop:
 ;        it will clear related variables, blinks LED and waits to
 ;        give time to user
 endGame:
+	mov.b #1, &isPreGame
 	clr.b &isEasterActive
 	bis.b #BIT2, &P2OUT
 
@@ -670,6 +700,40 @@ getRandom750Loop:
 	jmp getRandom750Loop
 
 getRandom750End:
+	inc.w r12
+	ret
+
+; 0-500
+getRandom500:
+	call #getRandomNumber
+	dec.w r12
+	jmp getRandom500Loop
+
+getRandom500Loop:
+	cmp.w #500, r12
+	jl getRandom500End
+
+	sub.w #500, r12
+	jmp getRandom500Loop
+
+getRandom500End:
+	inc.w r12
+	ret
+
+; 0-250
+getRandom250:
+	call #getRandomNumber
+	dec.w r12
+	jmp getRandom250Loop
+
+getRandom250Loop:
+	cmp.w #250, r12
+	jl getRandom750End
+
+	sub.w #250, r12
+	jmp getRandom250Loop
+
+getRandom250End:
 	inc.w r12
 	ret
 
@@ -1004,12 +1068,13 @@ handleButtonLED1:
 	bit.b #BIT2, &P1OUT
 	jnz led1Change
 
-	cmp.b #1, &isEasterActive
-    jeq led1Up
-
 	mov.b &currentPatternCounter, r12
 	inc.b &currentPatternCounter
 	rla.b r12
+
+	cmp.b #1, &isEasterActive
+    jeq led1Up
+
 	cmp.b #1, patternLEDData(r12)
 	jeq led1Up
 
@@ -1047,14 +1112,13 @@ handleButtonLED2:
 	bit.b #BIT3, &P1OUT
 	jnz led2Change
 
-	cmp.b #1, &isEasterActive
-    jeq led2Up
-
 	mov.b &currentPatternCounter, r12
 	inc.b &currentPatternCounter
 	rla.b r12
-	clr.w r13
-	mov.b patternLEDData(r12), r13
+
+	cmp.b #1, &isEasterActive
+    jeq led2Up
+
 	cmp.b #2, patternLEDData(r12)
 	jeq led2Up
 
@@ -1092,12 +1156,13 @@ handleButtonLED3:
 	bit.b #BIT4, &P1OUT
 	jnz led3Change
 
-	cmp.b #1, &isEasterActive
-    jeq led3Up
-
 	mov.b &currentPatternCounter, r12
 	inc.b &currentPatternCounter
 	rla.b r12
+
+	cmp.b #1, &isEasterActive
+    jeq led3Up
+
 	cmp.b #3, patternLEDData(r12)
 	jeq led3Up
 
@@ -1135,12 +1200,13 @@ handleButtonLED4:
 	bit.b #BIT5, &P1OUT
 	jnz led4Change
 
-	cmp.b #1, &isEasterActive
-    jeq led4Up
-
 	mov.b &currentPatternCounter, r12
 	inc.b &currentPatternCounter
 	rla.b r12
+
+	cmp.b #1, &isEasterActive
+    jeq led4Up
+
 	cmp.b #4, patternLEDData(r12)
 	jeq led4Up
 
@@ -1169,7 +1235,7 @@ led4Change:
 nextGame:
 	pop r12
 	clr.b &P1OUT
-	bis.b #BIT6, &P1OUT
+	bis.b #BIT0, &P1OUT
 
 	bic.b #BIT7|BIT6|BIT5|BIT4, &P2IE ; we are disabling interrupts because delay is called in this function
 
@@ -1178,11 +1244,15 @@ nextGame:
 	call #delaySubRoutine
 	pop r4
 
+	bic.b #BIT7|BIT6|BIT5|BIT4, &P2IFG
 	bis.b #BIT7|BIT6|BIT5|BIT4, &P2IE
 
-	bic.b #BIT6, &P1OUT
+	bic.b #BIT0, &P1OUT
 
 	mov.w &inGameReturnSP, SP ; we manipulate the stack pointer because the pattern is completed we need to go next iteration
+
+	bis.w #GIE, SR ; we reenable GIE because we manipulate the stack and we don't use reti in next instruction. Therefore our SR will lost. So we are enabling it in here again
+
 	ret ; normally nextGame is called using by interrupt and normally we need to use reti while we are returning interrupt
 		; however in this label we are doing stack pointer manipulation and this requires using ret
 
@@ -1236,7 +1306,7 @@ wasEasterUsed:    .byte 0
 ; @brief To used for break preGameStart infinite loop and returning preGame subroutine
 returnPreTransitionSP: .word 0
 
-;
+; @brief To used for keeping the counter which LED are checking now
 currentPatternCounter: .byte 0
 
 ;-------------------------------------------------------------------------------
