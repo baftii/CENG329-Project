@@ -39,8 +39,6 @@ StopWDT     mov.w   #WDTPW|WDTHOLD,&WDTCTL  ; Stop watchdog timer
 ;        values of the variables and registers. After that it
 ;		 jump to the mainLoop
 main:
-	mov.w #patternTimeData, r13
-	mov.w #patternLEDData, r10
 	call #defaultInit
 	jmp mainLoop
 
