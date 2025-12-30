@@ -34,17 +34,17 @@ StopWDT     mov.w   #WDTPW|WDTHOLD,&WDTCTL  ; Stop watchdog timer
 ; Pattern LED4 P1.5
 ; Winning LED P2.2
 
-; @brief label that the start point of the user defined program
-; 		 Label calls defaultInit label for resetting al default
+; @brief main is the start point of the user defined program
+; 		 main calls defaultInit label for resetting all default
 ;        values of the variables and registers. After that it
-;		 jump to the mainLoop
+;		 jumps to the mainLoop
 main:
 	call #defaultInit
 	jmp mainLoop
 
-; @brief label that responsible for real game. It continues forever
-;        The simon's says game has 3 major part. preGame, inGame and
-;        endGame. This label calls this parts one by one and repeats
+; @brief mainLoop is responsible for real game. It continues forever
+;        The Simon Says game has 3 major parts. preGame, inGame and
+;        endGame. This label calls these parts one by one and repeats
 ;        itself.
 mainLoop:
 	call #preGame
@@ -57,7 +57,7 @@ mainLoop:
 ; 				Pre-Game Part
 ; ###############################################
 
-; @brief label of the start point of preGame part of the simon's says
+; @brief preGame is the start point of preGame part of the Simon Says
 ;        game. Firstly it calls preGameInit label to configure ports
 ;        and variables for preGame part. After it will save stack pointer
 ;        to the variable called returnPreTransitionSP. We did this because
@@ -68,15 +68,15 @@ mainLoop:
 preGame:
 	call #preGameInit
 	mov.w SP, &returnPreTransitionSP
-	decd.w &returnPreTransitionSP ; we are decrementing it because after that we are calling preGameStart. We want to address of return point of preGameStart
-	call #preGameStart ; This subroutine normally continues for forever but related IRQ will break this
-	bic.w #BIT7|BIT6|BIT5|BIT4, &P2IE ; we are disable the buttons interrupts because if we reach this point going inGame need to be guaranteed and non-interruptable
+	decd.w &returnPreTransitionSP ; we are decrementing it because after that we are calling preGameStart. We want the address of return point of preGameStart
+	call #preGameStart ; This subroutine normally continues forever but related IRQ will break this
+	bic.w #BIT7|BIT6|BIT5|BIT4, &P2IE ; we disable the buttons' interrupts because if we reach this point, going to inGame must to be guaranteed and non-interruptable
 	call #preInTransition
 
 	mov.b #0, &isPreGame
 	ret
 
-; @brief this label configures button's interrupt edge to falling edge
+; @brief preGameInit configures buttons' interrupt edge to falling edge
 ;        because we are using pull-up buttons and it will enable
 ;        interrupts for this buttons
 preGameInit:
@@ -88,7 +88,7 @@ preGameInit:
 
 	ret
 
-; @brief this label will open the LEDs one by one. It will goes until
+; @brief preGAmeStart will open the LEDs one by one. It will go until
 ;        related interrupts happen
 ; @related playButtonExecute, goPreGame
 preGameStart:
@@ -107,7 +107,7 @@ preGameStart:
     bic.b #BIT5, &P1OUT
 	jmp preGameStart
 
-; @brief this label runs while button1 is pressed in preGameStart.
+; @brief preGameTransition runs while button1 is pressed in preGameStart.
 ; @related playButtonExecute, goTransition
 preGameTransition:
 	bic.b #BIT5|BIT4|BIT3|BIT2, &P1OUT
@@ -128,17 +128,17 @@ preGameTransition:
 	mov.w &returnPreTransitionSP, SP
 	ret
 
-; @brief Main purpose of this label to give free time to the user
+; @brief Main purpose of this label is to give free time to the user
 ;        when we are going into inGame part of the game. If this
-;        label don't exist. InGame will start instantly and user
-;        can't react it.
+;        label doesn't exist. InGame will start instantly and user
+;        can't keep up with the speed.
 preInTransition:
     push r4
     push r9
     mov.w #8,r9
 	jmp blinkWhile
 
-; @brief loop body of preInTransition
+; @brief blinkWhile is the loop body of preInTransition
 ; @related preInTransition
 blinkWhile:
 	mov.w  #400, r4
@@ -153,7 +153,7 @@ blinkWhile:
     call #delaySubRoutine
     jmp endBlinkWhile
 
-; @brief end point of preInTransition
+; @brief endBlinkWhile is the end point of preInTransition
 ; @related preInTransition
 endBlinkWhile:
 	bic.b #BIT4, &P2IE
@@ -165,17 +165,17 @@ endBlinkWhile:
 ; 				In-Game Parts
 ; ###############################################
 
-; @brief the starting point of the inGame part of the game
+; @brief inGAme is the starting point of the inGame part of the game
 ;        it calls inGameReset to reset variables and registers
 ;        for inGame part.
 inGame:
 	call #inGameReset
 	jmp inGameLoop
 
-; @brief loop body of inGame. By that function we are keeping
-;        game step. By requirements we need to play game for
+; @brief inGameLoop is the loop body of inGame. By that function we are keeping the
+;        game steps. By requirements we need to play the game for
 ;        at least 3 times. This label ensures that at least 3
-;        games are played
+;        games are played.
 ; @related inGame
 inGameLoop:
 	call #gamePlay
@@ -184,7 +184,7 @@ inGameLoop:
 	jne inGameLoop
 	ret
 
-; @brief this label configures buttons interrupt registers for
+; @brief inGameReset configures buttons' interrupt registers for
 ;        ingame part. And this label also calculates how many
 ;        times game will be played randomly and saves into
 ;        variable called maxPatternStep
@@ -201,11 +201,11 @@ inGameReset:
 	mov.b r12, &maxPatternStep ; maxPatternStep takes value between 3-4 (included)
 	ret
 
-; @brief By this label we are adjusting the difficulty of the
-;        game with respect the current iteration
+; @brief In gamePlay, we are adjusting the difficulty of the
+;        game with respect to the current iteration
 ; @related nextGame
 gamePlay:
-	mov.w SP, &inGameReturnSP ; We are saving the stack pointer at this point because we are determining if the the pattern is succesfully achieved  in the interrupts or not.
+	mov.w SP, &inGameReturnSP ; We are saving the stack pointer at this point because we are determining if the the pattern is succesfully achieved in the interrupts or not.
 	                          ; If we achieved succesfully, we will manipulate the stack pointer to go to the next step. This method is handled in nextGame label.
 
 	cmp.b #0, &currentPatternStep
@@ -220,7 +220,7 @@ gamePlay:
 	cmp.b #3, &currentPatternStep
 	jeq hardestGame ; 8-9 LED time 400 - 650 ms
 
-; @brief This label configures LED count and time values for easy difficulty
+; @brief easyGame configures LED count and time values for easy difficulty
 ;        it will run when currentPatternStep is equal to 0
 ;        LED count will be between 3-4 (included)
 ;        Delay time will be between 1500-2250ms (included)
@@ -239,8 +239,8 @@ easyGame:
 
 	jmp gameGO
 
-; @brief This label configures LED count and time values for medium difficulty
-;        it will run when currentPatternStep is equal to 0
+; @brief mediumGame configures LED count and time values for medium difficulty
+;        it will run when currentPatternStep is equal to 1
 ;        LED count will be between 4-5 (included)
 ;        Delay time will be between 1250-2000 (included)
 mediumGame:
@@ -258,8 +258,8 @@ mediumGame:
 
 	jmp gameGO
 
-; @brief This label configures LED count and time values for hard difficulty
-;        it will run when currentPatternStep is equal to 0
+; @brief hardGame configures LED count and time values for hard difficulty
+;        it will run when currentPatternStep is equal to 2
 ;        LED count will be between 6-7 (included)
 ;        Delay time will be between 750-1500 (included)
 hardGame:
@@ -277,8 +277,8 @@ hardGame:
 
 	jmp gameGO
 
-; @brief This label configures LED count and time values for hardest difficulty
-;        it will run when currentPatternStep is equal to 0
+; @brief hardestGame configures LED count and time values for hardest difficulty
+;        it will run when currentPatternStep is equal to 3
 ;        LED count will be between 8-9 (included)
 ;        Delay time will be between 500-1250 (included)
 hardestGame:
@@ -296,12 +296,12 @@ hardestGame:
 
 	jmp gameGO
 
-; @brief This label is the main label of inGame part of the game.
+; @brief gameGO is the main label of inGame part of the game.
 ;        By the values in patternLEDData and patternTimeData arrays
 ;        it shows randomly generated LED pattern and it will wait 10
 ;        seconds. If the timeout happens it will restart the game
 ;        The pattern check is controlled in interrupts. Therefore,
-;        this subroutine don't do anything for checking. For control
+;        this subroutine don't do anything for checking. The control
 ;        related subroutines are below
 ; @related patternLEDData
 gameGO:
@@ -315,9 +315,9 @@ gameGO:
 	call #delaySubRoutine
 	jmp restartGame
 
-; @brief This label will restart game if the timeout happens in gameGo
+; @brief restratGame will restart game if the timeout happens in gameGo
 ;        label. It resets the tracking parameters for the game and reset
-;        the stack. After all it will restart the program by going mainLoop
+;        the stack. After all, it will restart the program by going to the mainLoop
 ;        label
 restartGame:
 	bic.b #BIT4|BIT5|BIT6|BIT7, &P2IE
@@ -330,10 +330,10 @@ restartGame:
     mov.w #4, r15
 	jmp restartBlinkLoop
 
-; @brief loop body of restartGame label. All the exterior LEDs will blink as the 
+; @brief restratBlinkLoop is the loop body of restartGame label. All the exterior LEDs will blink as the 
 ;        amount given in parameter
 ; @related restartGame
-; @param r15 - The label showing how many times the LEDs will blink 
+; @param r15 - This label shows how many times the LEDs will blink 
 restartBlinkLoop:
     bis.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
     call #delay250msec
@@ -343,7 +343,7 @@ restartBlinkLoop:
     jnz restartBlinkLoop
 	jmp restartGameEnd
 
-; @brief end of the restartGame label
+; @brief restratGameEnd is the end of the restartGame label
 restartGameEnd:
     bic.b #BIT6, &P1OUT
 
@@ -355,7 +355,7 @@ restartGameEnd:
 
     ret
 
-; @brief this label is responsible for showing the randomly generated pattern
+; @brief representLED is responsible for showing the randomly generated pattern
 ;        in LEDs. It is dependant of variables called patternLEDData and
 ;        patternTimeData. We did it because our difficulty and count of LED
 ;        changes in game. With this dependancy, we get a flexibilty.
@@ -373,7 +373,7 @@ representLED:
 	dec.w r6
 	jmp representLEDLoop
 
-; @brief loop body of representLED
+; @brief representLEDLoop is the loop body of representLED
 ; @related representLED
 representLEDLoop:
 	cmp.b r5, &currentLEDCount ; check for if all pattern is shown or not
@@ -420,7 +420,7 @@ led2On:
 	call #delaySubRoutine
 	jmp representLEDLoop
 
-; @brief If the currentPattern points to the LED3 this label will runs
+; @brief If the currentPattern points to the LED3 this label will run
 led3On:
 	rra.b r5
 	inc.w r5
@@ -451,9 +451,9 @@ representLEDEnd:
 	bic.b #BIT2|BIT3|BIT4|BIT5, &P1OUT
 	ret
 
-; @brief this label calculates the time intervals with respect to given input
+; @brief calculateTimes calculates the time intervals with respect to given input
 ; @param r14 - minimum time
-; @uses r13 - tracks how many "time" is generated
+; @uses r13 - tracks how many time is generated
 ; @uses r9 - which random interval going to use
 calculateTimes:
 	push r13
@@ -501,7 +501,7 @@ calculateTimeLoopContinue:
 	add.w #2, r13
 	jmp calculateTimeLoopCheck
 
-; @brief this label calculates the time intervals respect to given input
+; @brief calculateLEDs calculates the time intervals respect to given input
 ; @uses r13 - tracks how many LED pattern is generated
 calculateLEDs:
 	push r13
@@ -509,7 +509,7 @@ calculateLEDs:
 	clr.w r13
 	jmp calculateLEDLoopCheck
 
-; @brief loop condition check of calculateLEDs
+; @brief calculateLEDLoopCheck is the loop condition check of calculateLEDs
 calculateLEDLoopCheck:
 
 	mov.b  &currentLEDCount,r8
@@ -525,7 +525,7 @@ calculateLEDLoopCheck:
 	pop r13
 	ret
 
-; @brief loop body of calculateLEDs
+; @brief calculateLEDLoop is the loop body of calculateLEDs
 calculateLEDLoop:
 	call #getRandom4
 	mov.w r12, patternLEDData(r13)
@@ -539,7 +539,7 @@ calculateLEDLoop:
 ; 				End-Game Parts
 ; ###############################################
 
-; @brief this label is the starting point of endGame part of the game.
+; @brief endGAme is the starting point of endGame part of the game.
 ;        It will clear related variables, blinks LEDs and waits to
 ;        give time to user
 endGame:
@@ -574,7 +574,7 @@ endGame:
 ; 			Initilization Subroutines
 ; ###############################################
 
-; @brief the label that handles all the first configuration of the game
+; @brief defaultInit handles all the first configuration of the game
 defaultInit:
 	mov.b &CALBC1_1MHZ, &BCSCTL1 ; We configured delaySubRoutine for 1MHz CPU Frequency. To ensure more consistent waitings
 								 ; we write factory calibrated values to the control register of CPU
@@ -584,7 +584,7 @@ defaultInit:
 	call #pinConfiguration
 	ret
 
-; @brief Label that configures all used IOs
+; @brief pinConfiguration configures all used IOs
 pinConfiguration:
 	; Port1
 	; Reset 0x00
@@ -634,7 +634,7 @@ pinConfiguration:
 ; 			Random Value Generation
 ; ###############################################
 
-; @brief this subroutine used for random value generation
+; @brief getRandomNumber is used for random value generation
 ;	     while we are creating this we used Texas
 ;        Instrument's SLAA338A document as the source. Basicly these subroutines
 ;        create random value by differences VLO and DCO clock
@@ -646,7 +646,7 @@ getRandomNumber:
 	mov.w #CM_1 + CCIS_1 + CAP, &TACCTL0
 	bic.w #CCIFG, &TACCTL0
 
-; @brief loop body of getRandomNumber. It will wait until VLO
+; @brief waitVLO is the loop body of getRandomNumber. It will wait until VLO
 ;        value is setted
 waitVLO:
 	bit.w #CCIFG, &TACCTL0
@@ -659,7 +659,7 @@ waitVLO:
 
 ; Below subroutines are originated by getRandomNumber subroutine
 ; However by requirement and our implementation some of the random
-; value intervals are gonna be used more frequently. Therefore we
+; value intervals are going to be used more frequently. Therefore we
 ; created seperate subroutines for creating random number in specific
 ; interval
 
@@ -739,7 +739,7 @@ getRandom250End:
 ; 				Delay Subroutine
 ; ###############################################
 
-; @brief Main delay subroutine that waits based on the argument in R4.
+; @brief delaySubRoutine is the main delay subroutine that waits based on the argument in R4.
 ;        This implementation assumes a CPU frequency of 1 MHz (1,000,000
 ;        cycles per second). To simplify programming on a 16-bit system,
 ;		 the delay is implemented with a granularity (resolution) of 50
@@ -770,48 +770,48 @@ delaySubRoutine:
 
 	ret
 
-; @brief subroutine that calculates how many times 50ms occurs in given input
+; @brief calculateOuterCount calculates how many times 50ms occurs in given input
 ; @param r4 - Duration to wait in milliseconds.
 ; @uses r5 - Registers used for loop counters and temporary calculations.
 calculateOuterCount:
 	clr.w r5
 
-; @brief loop body of calculateOuterCount
+; @brief outerCountLoop is the loop body of calculateOuterCount
 outerCountLoop:
 	sub.w #50, r4
 	jn calculateOuterCountFinal
 	inc.w r5
 	jmp outerCountLoop
 
-; @brief end of calculateOuterCount
+; @brief calculateOuterCountFinal is the end of calculateOuterCount
 calculateOuterCountFinal:
 	ret
 
-; @brief main subroutine for waiting time
+; @brief waitDelay is the main subroutine for waiting time
 ; @uses r6 - Registers used for loop counters and temporary calculations.
 ; @uses r7 - Registers used for loop counters and temporary calculations.
 waitDelay:
 	clr.w r6
 
-; @brief outer loop start of waitDelay
+; @brief waitDelayOuterLoopInit is the outer loop start of waitDelay
 waitDelayOuterLoopInit:
 	cmp.w r5, r6
 	jeq waitDelayFinal
 	clr.w r7
 
-; @brief inner loop of waitDelay
+; @brief waitDelayInnerLoop is the inner loop of waitDelay
 waitDelayInnerLoop:
 	inc.w r7 ; 1 cycle
 	cmp.w #10000, r7 ; 2 cycle
 	jne waitDelayInnerLoop ; 2 cycle
 	; Total 5 cycle --- It needs to turn 10,000 times to reach 50,000, so we compare it with 10,000. 
 
-; @brief outer loop end of wait delay
+; @brief waitDelayOuterLoopFinal is the outer loop end of wait delay
 waitDelayOuterLoopFinal:
 	inc.w r6
 	jmp waitDelayOuterLoopInit
 
-; @brief end of waitDelay
+; @brief waitdelayFinal is the end of waitDelay
 waitDelayFinal:
 	ret
 
@@ -846,16 +846,16 @@ delay250msec:
 ; ###############################################
 
 ; @brief IRQ subroutine of GPIO Port 2. Main of component of the game
-;        It will react for all button actions. It branching two different
+;        It will react for all button actions. It splits into two different
 ;        labels one is preGame one is inGame. This branching is controlled
-;        by variable. This method give us characteristic for buttons functionality
+;        by variable. This method give us characteristic for button functionality
 ;        respect to game situation
 Port2InterruptSubroutine:
 	cmp.b #1, &isPreGame
 	jeq preGameInterrupt
 	jmp inGameInterrupt
 
-; @brief this label runs when buttons are pressed while we are in preGame part
+; @brief preGAmeInterrupt runs when buttons are pressed while we are in preGame part
 ;        of the game
 preGameInterrupt:
 	bit.b #BIT5|BIT6|BIT7, &P2IFG ; Button2, Button3 and Button4 are just used for easterEgg detection in preGame therefore firstly we are checking
@@ -868,7 +868,7 @@ preGameInterrupt:
 	reti
 
 ; Button4 (BIT7) -> Button4 (BIT7) -> Button2 (BIT5) -> Button3 (BIT6) -> Button2 (BIT5) -> Button1 (BIT4)
-; @brief When the user in is preGame and if the user presses button in combination shown in up,
+; @brief When the user is in preGame and if the user presses button in combination shown in up,
 ;        easterEgg gonna be triggered. easterEgg will disbute button2, button3 and
 ;        button4 to their own labels to check this combination
 easterCheck:
@@ -881,9 +881,9 @@ easterCheck:
 	bit.b #BIT7, &P2IFG
 	jnz bit7EasterCheck
 
-; @brief this label is used for button4 combination check
+; @brief bit7easterCheck is used for button4 combination check
 ;        in given combination button4 need to be pressed firstly
-;        and secondly. We are checking this and if it us true
+;        and secondly. We are checking this and if it is true
 ;        we are incrementing the success count. If it is not
 ;        we are clearing the easterEgg success count
 bit7EasterCheck:
@@ -896,7 +896,7 @@ bit7EasterCheck:
 	clr.b &P2IFG
 	reti
 
-; @brief this label is used for button3 combination check
+; @brief bit6easterCheck is used for button3 combination check
 ;        in given combination button3 need to be pressed forthly
 ;        We are checking this and if it us true we are incrementing
 ;        the success count. If it is not we are clearing
@@ -909,9 +909,9 @@ bit6EasterCheck:
 	clr.b &P2IFG
 	reti
 
-; @brief this label is used for button2 combination check
+; @brief bit5easterCheck is used for button2 combination check
 ;        in given combination button2 need to be pressed thirdly
-;        and fifthly. We are checking this and if it us true
+;        and fifthly. We are checking this and if it is true
 ;        we are incrementing the success count. If it is not
 ;        we are clearing the easterEgg success count
 bit5EasterCheck:
@@ -924,7 +924,7 @@ bit5EasterCheck:
 	clr.b &P2IFG
 	reti
 
-; @brief this label is used for incrementing easterEgg success
+; @brief easterEggInc is used for incrementing easterEgg success
 ;        count. It will run when button4, button3, button2 is
 ;        pressed in correct order
 easterEggInc:
@@ -932,12 +932,12 @@ easterEggInc:
 	clr.b &P2IFG
 	reti
 
-; @brief this label used for button1 control in preGame part of the game
+; @brief playButtonCheck is used for button1 control in preGame part of the game
 ;        firstly we are checking easterEgg. We put button1 into last element
 ;        of easterEgg. Because button1 has two jobs in preGame if we put
-;        in middle of it we need to check much more thing and it will
-;        compilate the code therefore we put into last we just checking
-;        it is last element. If it is, it is easterEgg. If not it is
+;        in middle of it we need to check much more things and it will
+;        compilate the code therefore we put it into last we just checking
+;        it if it is the last element. If it is, it is easterEgg. If not it is
 ;        transition command.
 playButtonCheck:
 	cmp.b #5, &preGameCount
@@ -946,21 +946,21 @@ playButtonCheck:
 	clr.b &preGameCount
 	jmp playButtonExecute
 
-; @brief this label is used for button1 transition command. It will branching
-;        respect to value in isPreTransition. This label creates main idea of
+; @brief playButtonExecute is used for button1 transition command. It will branc
+;        respect to the value in isPreTransition. This label creates main idea of
 ;        preGame. If falling-edge detects, it will go goTransition and switchs
 ;        mode with transition mode. If it detects rising edge before transition
-;        mode is finished, it will go goPreGame to get back where it is before
-;        transition. This established with stack manipulation.
+;        mode is finished, it will go goPreGame to get back to where it was before
+;        transition. This is established with stack manipulation.
 playButtonExecute:
 	cmp.b #0, &isPreTransition
 	jeq goTransition
 	jmp goPreGame
 
-; @brief It runs when preGameStart is running and button1 is detected falling-edge
+; @brief goTransition runs when preGameStart is running and button1 is detected falling-edge
 ;        This label changes isPreTransition value because next time if interrupt
 ;        occurs in button1 goPreGame need to run.
-;        After it will record current stack pointer to preGameReturnSP. This value
+;        After that it will record current stack pointer to preGameReturnSP. This value
 ;        is saved because if we need to go back goPreGame we need to know where we
 ;        were. Also we are recording preGameReturnPC, preGameReturnSR this purpose.
 ;        After saving we are 2(SP) value with preGameTranstion subroutine. Because
@@ -980,10 +980,10 @@ goTransition:
 	bic.b #BIT7|BIT6|BIT5, &P2IE
 
 	clr.b &P2IFG
-	xor.b #BIT4, &P2IES ; We are changing the edge because if unpress the button1 before complete of preGameTransition we need to know that
+	xor.b #BIT4, &P2IES ; We are changing the edge because if we unpress the button1 before complete of preGameTransition we need to know that
 	reti
 
-; @brief It runs when preGameTransition is running and button1 is detected rising-edge
+; @brief goPreGAme runs when preGameTransition is running and button1 is detected rising-edge
 ;        This label is for returning last point preGameStart. While we goTransition, we
 ; 		 saved several values like PC, SR and SP. In this step, we are using this values
 ;        to get back this point. Also we are changing edge selection for detecting goTransition
@@ -1004,10 +1004,10 @@ goPreGame:
 
 ; @brief This label runs when easterEgg combination is achieved
 ;        It will set the values for easterEgg mode. The easterEgg
-;        is if user find combination and start the play games. Wrong
-;        answers are omitted. It will give user play like in god-mode
-;        This easterEgg can be usable for once in lifetime of program
-;        this will controlled by wasEasterUsed variable
+;        is used if user find combination and start the games. Wrong
+;        answers are omitted. It will give user the god-mode privilages
+;        This easterEgg can be used for once in lifetime of program
+;        this will ce controlled by wasEasterUsed variable
 easterEggExecute:
     cmp.b #1, &wasEasterUsed
     jeq easterEggExitToPreGame
@@ -1038,7 +1038,7 @@ easterEggExitToPreGame:
 
     reti
 
-; @brief This label runs when buttons are pressed in inGame part of the
+; @brief inGameInterrupt runs when buttons are pressed in inGame part of the
 ;        game. The label branching for which ports interrupt occurs.
 inGameInterrupt:
 	bit.b #BIT4, &P2IFG
@@ -1053,13 +1053,13 @@ inGameInterrupt:
 	bit.b #BIT7, &P2IFG
 	jnz handleButtonLED4
 
-; @brief This label runs when button1 pressed in inGame part.
-;        Firstly it checks button1 connected LED1 is on or not
+; @brief handleButtonLED1 runs when button1 pressed in inGame part.
+;        Firstly it checks if the button1 that is connected to the LED1 is on or not
 ;        If it is on it will just close the LED1. If it is off
-;        Firstly checks easterEgg is on or not. If it is just
+;        Firstly checks if easterEgg is on or not. If it is just
 ;        increment success. If it is not it compares LED1 value
-;        with pattern. To ensure player pressed right or not.
-;        If user presses wrong it will manipulate stack pointer
+;        with pattern. To ensure that the player pressed right or not.
+;        If user presses wrong, it will manipulate stack pointer
 ;        and call restartGame
 handleButtonLED1:
 	push r12
@@ -1080,7 +1080,7 @@ handleButtonLED1:
 	mov.w #restartGame, 0(SP)
 	ret
 
-; @brief This label increment success of currentPattern and compare
+; @brief led1Up increment success of currentPattern and compare
 ;        pattern is ended or not
 led1Up:
 	rra.b r12
@@ -1089,7 +1089,7 @@ led1Up:
 	jeq nextGame
 	jmp led1Change
 
-; @brief Controlls Button1 interrupt edge and LED1
+; @brief led1Change Controlls Button1 interrupt edge and LED1
 led1Change:
 	pop r12
 	xor.b #BIT2, &P1OUT
@@ -1097,12 +1097,12 @@ led1Change:
 	bic.b #BIT4, &P2IFG
 	reti
 
-; @brief This label runs when button2 pressed in inGame part.
-;        Firstly it checks button2 connected LED2 is on or not
+; @brief handleButtonLED2 runs when button2 is pressed in inGame part.
+;        Firstly it checks if button2 that is connected to LED2 is on or not
 ;        If it is on it will just close the LED2. If it is off
-;        Firstly checks easterEgg is on or not. If it is just
+;        Firstly checks is easterEgg is on or not. If it is just
 ;        increment success. If it is not it compares LED2 value
-;        with pattern. To ensure player pressed right or not.
+;        with pattern. To ensure that the player pressed right or not.
 ;        If user presses wrong it will manipulate stack pointer
 ;        and call restartGame
 handleButtonLED2:
@@ -1142,11 +1142,11 @@ led2Change:
 	reti
 
 ; @brief This label runs when button3 pressed in inGame part.
-;        Firstly it checks button3 connected LED3 is on or not
+;        Firstly it checks if button3 that is connected to LED3 is on or not
 ;        If it is on it will just close the LED3. If it is off
 ;        Firstly checks easterEgg is on or not. If it is just
 ;        increment success. If it is not it compares LED3 value
-;        with pattern. To ensure player pressed right or not.
+;        with pattern. To ensure that the player pressed right or not.
 ;        If user presses wrong it will manipulate stack pointer
 ;        and call restartGame
 handleButtonLED3:
@@ -1185,12 +1185,12 @@ led3Change:
 	bic.b #BIT6, &P2IFG
 	reti
 
-; @brief This label runs when button4 pressed in inGame part.
-;        Firstly it checks button4 connected LED4 is on or not
+; @brief This label runs when button4 is pressed in inGame part.
+;        Firstly it checks if button4 that is connected to LED4 is on or not
 ;        If it is on it will just close the LED4. If it is off
-;        Firstly checks easterEgg is on or not. If it is just
+;        Firstly checks if easterEgg is on or not. If it is just
 ;        increment success. If it is not it compares LED4 value
-;        with pattern. To ensure player pressed right or not.
+;        with pattern. To ensure that the player pressed right or not.
 ;        If user presses wrong it will manipulate stack pointer
 ;        and call restartGame
 handleButtonLED4:
@@ -1247,9 +1247,9 @@ nextGame:
 
 	bic.b #BIT0, &P1OUT
 
-	mov.w &inGameReturnSP, SP ; we manipulate the stack pointer because the pattern is completed we need to go next iteration
+	mov.w &inGameReturnSP, SP ; we manipulate the stack pointer because the pattern is completed we need to go to the next iteration
 
-	bis.w #GIE, SR ; we reenable GIE because we manipulate the stack and we don't use reti in next instruction. Therefore our SR will lost. So we are enabling it in here again
+	bis.w #GIE, SR ; we reenable GIE because we manipulate the stack and we don't use reti in next instruction. Therefore our SR will be lost. So we are enabling it in here again
 
 	ret ; normally nextGame is called using by interrupt and normally we need to use reti while we are returning interrupt
 		; however in this label we are doing stack pointer manipulation and this requires using ret
@@ -1259,52 +1259,52 @@ nextGame:
 ; ###############################################
 
 			.data
-; @brief To used for determine the program in preGame or inGame.
+; @brief Is used for determining the program in preGame or inGame.
 isPreGame: .byte 1
 
-; @brief To used for determine the program in preGameStart or preGameTransition
+; @brief Is used for determining the program in preGameStart or preGameTransition
 isPreTransition: .byte 0
 
-; @brief To used for keeping easterEgg success count
+; @brief Is used for keeping easterEgg success count
 preGameCount: .byte 0
 
-; @brief To used for returning preGameTranstion to preGameStart
+; @brief Is used for returning preGameTranstion to preGameStart
 preGameReturnPC: .word 0
 preGameReturnSR: .word 0
 preGameReturnSP: .word 0
 
-; @brief To used for when inGame pattern is completed, to return next pattern iteration
+; @brief Is used for when inGame pattern is completed, to return next pattern iteration
 inGameReturnSP: .word 0
 
 ; @brief This is a parameter to count whether the player pressed the buttons in the right sequence
 sequenceCounter: .byte 0
 
-; @brief To used for saving random generated LED pattern and Time intervals
+; @brief Is used for saving random generated LED pattern and Time intervals
 patternLEDData: .word 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 patternTimeData: .word 0, 0, 0, 0, 0, 0, 0, 0, 0
 
-; @brief To used for keeping how many LED is generated by random generator in this inGameStep
+; @brief Is used for keeping how many LED is generated by random generator in this inGameStep
 currentLEDCount: .byte 0
 
-; @brief To used for keeping how many time is generated by random generator in this inGameStep (currentLEDCount - 1)
+; @brief Is used for keeping how many time is generated by random generator in this inGameStep (currentLEDCount - 1)
 currentTimeCount: .byte 0
 
-; @brief To used for how many step will be played in inGame
+; @brief Is used for how many step will be played in inGame
 maxPatternStep: .byte 0
 
-; @brief To used for which step we are playing in inGame
+; @brief Is used for which step we are playing in inGame
 currentPatternStep: .byte 0
 
-; @brief To used for determine easterEgg(god-mode) is active or not
+; @brief Is used for determine easterEgg(god-mode) is active or not
 isEasterActive:   .byte 0
 
-; @brief To used for determine easterEgg used before or not
+; @brief Is used for determine easterEgg used before or not
 wasEasterUsed:    .byte 0
 
-; @brief To used for break preGameStart infinite loop and returning preGame subroutine
+; @brief Is used for break preGameStart infinite loop and returning preGame subroutine
 returnPreTransitionSP: .word 0
 
-; @brief To used for keeping the counter which LED are checking now
+; @brief Is used for keeping the counter which LED are checking now
 currentPatternCounter: .byte 0
 
 ;-------------------------------------------------------------------------------
