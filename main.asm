@@ -1276,9 +1276,6 @@ preGameReturnSP: .word 0
 ; @brief Is used for when inGame pattern is completed, to return next pattern iteration
 inGameReturnSP: .word 0
 
-; @brief This is a parameter to count whether the player pressed the buttons in the right sequence
-sequenceCounter: .byte 0
-
 ; @brief Is used for saving random generated LED pattern and Time intervals
 patternLEDData: .word 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 patternTimeData: .word 0, 0, 0, 0, 0, 0, 0, 0, 0
